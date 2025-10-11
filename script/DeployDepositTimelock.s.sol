@@ -9,7 +9,10 @@ import {DepositTimelock} from "src/DepositTimelock.sol";
 import {Deployer} from "./utils/Deployer.s.sol";
 
 contract DeployDepositTimelock is Deployer {
-    function run(address deployer, address admin) public broadcast useDeployment returns (address) {
+    function run(
+        address deployer,
+        address admin
+    ) public broadcast useDeployment returns (address) {
         // Deploy DepositTimelock implementation
         DepositTimelock depositTimelockImpl = new DepositTimelock();
         console.log("DepositTimelock implementation", address(depositTimelockImpl));

@@ -2,72 +2,80 @@
 
 set -e
 
-# deploy a contract
-run() {
-    local network="$1"
-    local rpc_url_var="$2"
-    local contract="$3"
-
-    case $network in
-        "local")
-            echo "Running locally"
-            forge script "$contract" --fork-url http://localhost:8545 --private-key $PRIVATE_KEY --broadcast -vvvv "${@:4}"
-            ;;
-
-        "goerli"|"sepolia"|"mainnet"|"blast"|"base"|"arbitrum_sepolia"|"arbitrum"|"plasma")
-            local rpc_url="${!rpc_url_var}"
-            if [[ -z $rpc_url ]]; then
-                echo "$rpc_url_var is not set"
-                exit 1
-            fi
-            echo "Running on $network"
-            if [ ! -z $LEDGER_DERIVATION_PATH ]; then
-                forge script "$contract" --rpc-url "$rpc_url" --ledger --hd-paths $LEDGER_DERIVATION_PATH --sender $LEDGER_ADDRESS --broadcast -vvvv "${@:4}"
-            else
-                forge script "$contract" --rpc-url "$rpc_url" --private-key $PRIVATE_KEY --broadcast -vvvv "${@:4}"
-            fi
-            ;;
-
-        *)
-            echo "Invalid NETWORK value"
-            exit 1
-            ;;
-    esac
-}
+declare -A SCRIPTS=(
+    ["deploy-loan-router"]="script/DeployLoanRouter.s.sol:DeployLoanRouter"
+    ["deploy-deposit-timelock"]="script/DeployDepositTimelock.s.sol:DeployDepositTimelock"
+    ["upgrade-loan-router"]="script/UpgradeLoanRouter.s.sol:UpgradeLoanRouter"
+    ["upgrade-deposit-timelock"]="script/UpgradeDepositTimelock.s.sol:UpgradeDepositTimelock"
+    ["deploy-simple-interest-rate-model"]="script/DeploySimpleInterestRateModel.s.sol:DeploySimpleInterestRateModel"
+    ["deploy-amortized-interest-rate-model"]="script/DeployAmortizedInterestRateModel.s.sol:DeployAmortizedInterestRateModel"
+    ["deploy-usdai-swap-adapter"]="script/DeployUSDaiSwapAdapter.s.sol:DeployUSDaiSwapAdapter"
+    ["deploy-uniswap-v3-swap-adapter"]="script/DeployUniswapV3SwapAdapter.s.sol:DeployUniswapV3SwapAdapter"
+    ["deposit-timelock-add-swap-adapter"]="script/DepositTimelockAddSwapAdapter.s.sol:DepositTimelockAddSwapAdapter"
+    ["deposit-timelock-remove-swap-adapter"]="script/DepositTimelockRemoveSwapAdapter.s.sol:DepositTimelockRemoveSwapAdapter"
+    ["show"]="script/Show.s.sol:Show"
+)
 
 usage() {
-    echo "Usage: $0 <command> [options]"
+    echo "Usage: $0 <command> [arguments...]"
     echo ""
     echo "Commands:"
+    echo "  deploy-deposit-timelock <deployer> <admin>"
+    echo "  deploy-loan-router <collateral liquidator> <collateral wrapper> <deployer> <admin> <liquidation fee rate>"
     echo ""
-    echo "  deploy-loan-router"
+    echo "  upgrade-deposit-timelock"
+    echo "  upgrade-loan-router <collateral liquidator> <collateral wrapper>"
+    echo ""
+    echo "  deploy-usdai-swap-adapter <usdai token>"
+    echo "  deploy-uniswap-v3-swap-adapter <swap router>"
+    echo "  deploy-simple-interest-rate-model"
+    echo "  deploy-amortized-interest-rate-model"
+    echo ""
+    echo "  deposit-timelock-add-swap-adapter <token> <swap adapter>"
+    echo "  deposit-timelock-remove-swap-adapter <token>>"
+    echo ""
     echo "  show"
-    echo ""
-    echo "Options:"
-    echo "  NETWORK: Set this environment variable to either 'local' or a network name."
 }
 
-### deployment manager ###
+# Check argument count
+if [ "$#" -lt 1 ]; then
+    usage
+    exit 0
+fi
 
-DEPLOYMENTS_FILE="deployments/${NETWORK}.json"
-
+# Check for NETWORK env var
 if [[ -z "$NETWORK" ]]; then
-    echo "Error: Set NETWORK."
-    echo ""
+    echo -e "Error: NETWORK env var missing.\n"
     usage
     exit 1
 fi
 
-case $1 in
-   "test")
-        run "$NETWORK" "${NETWORK^^}_RPC_URL" "script/Test.s.sol:Test" --sig "run()"
-        ;;
+# Check for <NETWORK>_RPC_URL env var
+RPC_URL_VAR=${NETWORK^^}_RPC_URL
+RPC_URL=${!RPC_URL_VAR}
+if [[ -z "$RPC_URL" ]]; then
+    echo -e "Error: $RPC_URL env var missing.\n"
+    usage
+    exit 1
+fi
 
-    "show")
-        run "$NETWORK" "${NETWORK^^}_RPC_URL" "script/Show.s.sol:Show" --sig "run()"
-        ;;
-    *)
-        usage
-        exit 1
-        ;;
-esac
+# Look up script
+SCRIPT=${SCRIPTS[$1]}
+if [[ -z "$SCRIPT" ]]; then
+    echo -e "Error: unknown command \"$1\"\n"
+    usage
+    exit 1
+fi
+
+# Look up script signature
+SIGNATURE=$(forge inspect --no-cache --contracts script "$SCRIPT" mi --json | grep -o "run(.*)")
+
+echo -e "Running on $NETWORK\n"
+
+if [[ ! -z "$LEDGER_DERIVATION_PATH" ]]; then
+    forge script --rpc-url "$RPC_URL" --ledger --hd-paths "$LEDGER_DERIVATION_PATH" --sender "$LEDGER_ADDRESS" --broadcast -vvvv "$SCRIPT" --sig "$SIGNATURE" "${@:2}"
+elif [[ ! -z "$PRIVATE_KEY" ]]; then
+    forge script --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" --broadcast -vvvv "$SCRIPT" --sig "$SIGNATURE" "${@:2}"
+else
+    forge script --rpc-url "$RPC_URL" -vvvv "$SCRIPT" --sig "$SIGNATURE" "${@:2}"
+fi

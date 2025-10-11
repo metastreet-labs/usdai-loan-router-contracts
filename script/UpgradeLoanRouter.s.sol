@@ -24,9 +24,8 @@ contract UpgradeLoanRouter is Deployer {
 
         if (Ownable(proxyAdmin).owner() == msg.sender) {
             /* Upgrade Proxy */
-            ProxyAdmin(proxyAdmin).upgradeAndCall(
-                ITransparentUpgradeableProxy(_deployment.loanRouter), address(loanRouterImpl), ""
-            );
+            ProxyAdmin(proxyAdmin)
+                .upgradeAndCall(ITransparentUpgradeableProxy(_deployment.loanRouter), address(loanRouterImpl), "");
             console.log("Upgraded proxy %s implementation to: %s\n", _deployment.loanRouter, address(loanRouterImpl));
         } else {
             console.log("\nUpgrade calldata");

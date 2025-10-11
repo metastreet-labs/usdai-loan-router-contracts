@@ -21,9 +21,10 @@ contract UpgradeDepositTimelock is Deployer {
 
         if (Ownable(proxyAdmin).owner() == msg.sender) {
             /* Upgrade Proxy */
-            ProxyAdmin(proxyAdmin).upgradeAndCall(
-                ITransparentUpgradeableProxy(_deployment.depositTimelock), address(depositTimelockImpl), ""
-            );
+            ProxyAdmin(proxyAdmin)
+                .upgradeAndCall(
+                    ITransparentUpgradeableProxy(_deployment.depositTimelock), address(depositTimelockImpl), ""
+                );
             console.log(
                 "Upgraded proxy %s implementation to: %s\n", _deployment.depositTimelock, address(depositTimelockImpl)
             );
