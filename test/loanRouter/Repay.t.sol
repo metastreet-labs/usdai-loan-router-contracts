@@ -519,4 +519,190 @@ contract LoanRouterRepayTest is BaseTest {
         assertGt(lender3Payment, lender2Payment, "Lender3 should receive more than Lender2");
         assertGt(lender2Payment, lender1Payment, "Lender2 should receive more than Lender1");
     }
+
+    /*------------------------------------------------------------------------*/
+    /* Test: Blacklisted lender - repayment still succeeds but lender does not receive payment */
+    /*------------------------------------------------------------------------*/
+
+    function test__Repay_BlacklistedLender_SingleTranche_NoPayment() public {
+        uint256 principal = 100_000 * 1e6; // 100k USDC
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1);
+
+        (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        // Blacklist lender1 using actual USDC blacklist function
+        // USDC blacklister address on Arbitrum
+        address usdcBlacklister = 0xAC5b4946A8C29Eafb42e1742b3AB82e6D5771329;
+        vm.startPrank(usdcBlacklister);
+        (bool success,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender1));
+        require(success, "Blacklist call failed");
+        vm.stopPrank();
+
+        // Warp to repayment window
+        warpToNextRepaymentWindow(repaymentDeadline);
+
+        // Record balances
+        uint256 lender1Before = IERC20(USDC).balanceOf(users.lender1);
+        uint256 borrowerBefore = IERC20(USDC).balanceOf(users.borrower);
+
+        // Repay
+        vm.startPrank(users.borrower);
+        uint256 requiredPayment = calculateRequiredRepayment(loanTerms);
+        loanRouter.repay(loanTerms, requiredPayment);
+        vm.stopPrank();
+
+        // Verify lender did NOT receive payment (still blacklisted)
+        assertEq(IERC20(USDC).balanceOf(users.lender1), lender1Before, "Blacklisted lender should not receive payment");
+
+        // Verify borrower paid
+        assertLt(IERC20(USDC).balanceOf(users.borrower), borrowerBefore, "Borrower should have paid");
+    }
+
+    function test__Repay_BlacklistedLender_MultipleTranches_OneBlacklisted() public {
+        uint256 principal = 300_000 * 1e6; // 300k USDC
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 3);
+
+        (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        // Blacklist lender2 only (middle tranche)
+        address usdcBlacklister = 0xAC5b4946A8C29Eafb42e1742b3AB82e6D5771329;
+        vm.startPrank(usdcBlacklister);
+        (bool success,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender2));
+        require(success, "Blacklist call failed");
+        vm.stopPrank();
+
+        // Warp to repayment window
+        warpToNextRepaymentWindow(repaymentDeadline);
+
+        // Record balances
+        uint256 lender1Before = IERC20(USDC).balanceOf(users.lender1);
+        uint256 lender2Before = IERC20(USDC).balanceOf(users.lender2);
+        uint256 lender3Before = IERC20(USDC).balanceOf(users.lender3);
+
+        // Repay
+        vm.startPrank(users.borrower);
+        uint256 requiredPayment = calculateRequiredRepayment(loanTerms);
+        loanRouter.repay(loanTerms, requiredPayment);
+        vm.stopPrank();
+
+        uint256 lender1Payment = IERC20(USDC).balanceOf(users.lender1) - lender1Before;
+        uint256 lender2Payment = IERC20(USDC).balanceOf(users.lender2) - lender2Before;
+        uint256 lender3Payment = IERC20(USDC).balanceOf(users.lender3) - lender3Before;
+
+        // Verify lender1 and lender3 received their payments (not blacklisted)
+        assertGt(lender1Payment, 0, "Lender1 should receive payment");
+        assertGt(lender3Payment, 0, "Lender3 should receive payment");
+
+        // Verify lender2 did NOT receive payment (blacklisted)
+        assertEq(lender2Payment, 0, "Blacklisted lender2 should not receive payment");
+    }
+
+    function test__Repay_BlacklistedLender_FullRepayment_NoPayment() public {
+        uint256 principal = 100_000 * 1e6; // 100k USDC
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1);
+
+        (,, uint64 repaymentDeadline, uint256 balance) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        // Blacklist lender1
+        address usdcBlacklister = 0xAC5b4946A8C29Eafb42e1742b3AB82e6D5771329;
+        vm.startPrank(usdcBlacklister);
+        (bool success,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender1));
+        require(success, "Blacklist call failed");
+        vm.stopPrank();
+
+        // Warp to repayment window
+        warpToNextRepaymentWindow(repaymentDeadline);
+
+        // Record balances
+        uint256 lender1Before = IERC20(USDC).balanceOf(users.lender1);
+
+        // Pay off entire loan
+        vm.startPrank(users.borrower);
+        uint256 fullRepaymentAmount = balance * 2; // Overpay to ensure full repayment
+        loanRouter.repay(loanTerms, fullRepaymentAmount);
+        vm.stopPrank();
+
+        // Verify loan fully repaid
+        (ILoanRouter.LoanStatus status,,, uint256 finalBalance) =
+            loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+        assertEq(uint8(status), uint8(ILoanRouter.LoanStatus.Repaid), "Loan should be repaid");
+        assertEq(finalBalance, 0, "Balance should be zero");
+
+        // Verify lender1 did not receive payment
+        assertEq(IERC20(USDC).balanceOf(users.lender1), lender1Before, "Blacklisted lender should not receive payment");
+
+        // Verify collateral returned to borrower despite blacklisted lender
+        assertEq(IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId), users.borrower, "Collateral should be returned");
+    }
+
+    function test__Repay_BlacklistedLender_LatePayment_NoPayment() public {
+        uint256 principal = 100_000 * 1e6; // 100k USDC
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1);
+
+        (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        // Blacklist lender1
+        address usdcBlacklister = 0xAC5b4946A8C29Eafb42e1742b3AB82e6D5771329;
+        vm.startPrank(usdcBlacklister);
+        (bool success,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender1));
+        require(success, "Blacklist call failed");
+        vm.stopPrank();
+
+        // Miss the first repayment window (late payment)
+        vm.warp(repaymentDeadline + 1);
+
+        // Record balances
+        uint256 lender1Before = IERC20(USDC).balanceOf(users.lender1);
+
+        // Repay late (includes grace period interest)
+        vm.startPrank(users.borrower);
+        uint256 requiredPayment = calculateRequiredRepayment(loanTerms);
+        loanRouter.repay(loanTerms, requiredPayment);
+        vm.stopPrank();
+
+        // Verify lender did not receive payment
+        assertEq(IERC20(USDC).balanceOf(users.lender1), lender1Before, "Blacklisted lender should not receive payment");
+    }
+
+    function test__Repay_BlacklistedLender_AllTranchesBlacklisted() public {
+        uint256 principal = 300_000 * 1e6; // 300k USDC
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 3);
+
+        (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        // Blacklist all lenders
+        address usdcBlacklister = 0xAC5b4946A8C29Eafb42e1742b3AB82e6D5771329;
+        vm.startPrank(usdcBlacklister);
+        (bool success1,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender1));
+        require(success1, "Blacklist call failed for lender1");
+        (bool success2,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender2));
+        require(success2, "Blacklist call failed for lender2");
+        (bool success3,) = USDC.call(abi.encodeWithSignature("blacklist(address)", users.lender3));
+        require(success3, "Blacklist call failed for lender3");
+        vm.stopPrank();
+
+        // Warp to repayment window
+        warpToNextRepaymentWindow(repaymentDeadline);
+
+        // Record balances
+        uint256 lender1Before = IERC20(USDC).balanceOf(users.lender1);
+        uint256 lender2Before = IERC20(USDC).balanceOf(users.lender2);
+        uint256 lender3Before = IERC20(USDC).balanceOf(users.lender3);
+
+        // Repay
+        vm.startPrank(users.borrower);
+        uint256 requiredPayment = calculateRequiredRepayment(loanTerms);
+        loanRouter.repay(loanTerms, requiredPayment);
+        vm.stopPrank();
+
+        // Verify no lenders received payments
+        assertEq(IERC20(USDC).balanceOf(users.lender1), lender1Before, "Blacklisted lender1 should not receive payment");
+        assertEq(IERC20(USDC).balanceOf(users.lender2), lender2Before, "Blacklisted lender2 should not receive payment");
+        assertEq(IERC20(USDC).balanceOf(users.lender3), lender3Before, "Blacklisted lender3 should not receive payment");
+    }
 }
