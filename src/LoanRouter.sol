@@ -276,12 +276,18 @@ contract LoanRouter is
     /**
      * @dev Helper function to scale down a value
      * @param value Value
+     * @param isRoundUp Round up if true
      * @return Unscaled value
      */
     function _unscale(
-        uint256 value
+        uint256 value,
+        bool isRoundUp
     ) internal view returns (uint256) {
-        return value / SCALING_FACTOR_STORAGE_LOCATION.asUint256().tload();
+        /* Get scale factor */
+        uint256 scaleFactor_ = SCALING_FACTOR_STORAGE_LOCATION.asUint256().tload();
+
+        /* Round down if not rounding up */
+        return (value % scaleFactor_ == 0 || !isRoundUp) ? value / scaleFactor_ : value / scaleFactor_ + 1;
     }
 
     /**
@@ -476,16 +482,22 @@ contract LoanRouter is
             totalPrepaymentRemaining -= tranchePrepayment;
 
             /* Calculate unscaled principal, interest, prepayment, and total repayment */
-            uint256 principal = _unscale(tranchePrincipals[i]);
-            uint256 interest = _unscale(trancheInterests[i]);
-            uint256 prepayment = _unscale(tranchePrepayment);
+            uint256 principal = _unscale(tranchePrincipals[i], false);
+            uint256 interest = _unscale(trancheInterests[i], false);
+            uint256 prepayment = _unscale(tranchePrepayment, false);
             uint256 repayment = principal + interest + prepayment;
 
             /* Get tranche owner */
             address owner = _ownerOf(_tokenId(loanTermsHash_, i));
 
             /* Transfer unscaled repayment amount from this contract to token owner */
-            if (repayment > 0) IERC20(loanTerms.currencyToken).safeTransferFrom(msg.sender, owner, repayment);
+            if (repayment > 0) {
+                try IERC20(loanTerms.currencyToken).transfer(owner, repayment) returns (bool success) {
+                    if (!success) emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                } catch {
+                    emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                }
+            }
 
             /* Call onLoanRepayment hook if lender is a contract and implements ILoanRouterHooks interface */
             if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
@@ -518,15 +530,21 @@ contract LoanRouter is
     ) internal {
         for (uint8 i; i < loanTerms.trancheSpecs.length; i++) {
             /* Calculate unscaled principal, interest, prepayment, and total repayment */
-            uint256 principal = _unscale(tranchePrincipals[i]);
-            uint256 interest = _unscale(trancheInterests[i]);
+            uint256 principal = _unscale(tranchePrincipals[i], false);
+            uint256 interest = _unscale(trancheInterests[i], false);
             uint256 repayment = principal + interest;
 
             /* Get tranche owner */
             address owner = _ownerOf(_tokenId(loanTermsHash_, i));
 
             /* Transfer unscaled repayment amount from this contract to token owner */
-            if (repayment > 0) IERC20(loanTerms.currencyToken).safeTransfer(owner, repayment);
+            if (repayment > 0) {
+                try IERC20(loanTerms.currencyToken).transfer(owner, repayment) returns (bool success) {
+                    if (!success) emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                } catch {
+                    emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                }
+            }
 
             /* Call onCollateralLiquidated hook if lender is a contract and implements ILoanRouterHooks interface */
             if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
@@ -793,18 +811,29 @@ contract LoanRouter is
             _returnCollateral(loanTerms);
         }
 
+        /* Transfer total repayment amount to this contract */
+        IERC20(loanTerms.currencyToken)
+            .safeTransferFrom(
+                msg.sender, address(this), _unscale(principalPayment + interestPayment + prepayment, true)
+            );
+
         /* Transfer lender repayments and call onLoanRepayment hooks */
         _repayLenders(
-            loanTerms, loanTermsHash_, _unscale(loanState_.balance), trancheInterests, tranchePrincipals, prepayment
+            loanTerms,
+            loanTermsHash_,
+            _unscale(loanState_.balance, false),
+            trancheInterests,
+            tranchePrincipals,
+            prepayment
         );
 
         /* Emit loan repaid event */
         emit LoanRepaid(
             loanTermsHash_,
             msg.sender,
-            _unscale(principalPayment),
-            _unscale(interestPayment),
-            _unscale(prepayment),
+            _unscale(principalPayment, false),
+            _unscale(interestPayment, false),
+            _unscale(prepayment, false),
             loanState_.status == LoanStatus.Repaid ? loanTerms.feeSpec.exitFee : 0,
             loanState_.status == LoanStatus.Repaid
         );
@@ -954,8 +983,8 @@ contract LoanRouter is
         _repayLendersLiquidation(loanTerms, loanTermsHash_, trancheInterests, tranchePrincipals);
 
         /* Unscale liquidation fee and surplus */
-        liquidationFee = _unscale(liquidationFee);
-        remainingProceeds = _unscale(remainingProceeds);
+        liquidationFee = _unscale(liquidationFee, false);
+        remainingProceeds = _unscale(remainingProceeds, false);
 
         /* Transfer liquidation fee and surplus to fee recipient */
         if (liquidationFee + remainingProceeds > 0) {
@@ -993,6 +1022,23 @@ contract LoanRouter is
 
         /* Emit liquidation fee rate set event */
         emit LiquidationFeeRateSet(liquidationFeeRate);
+    }
+
+    /**
+     * @notice Withdraw ERC20 tokens
+     * @param token Token address
+     * @param amount Amount to withdraw
+     * @param recipient Recipient address
+     */
+    function withdrawERC20(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(recipient, amount);
+
+        /* Emit ERC20 withdrawn event */
+        emit ERC20Withdrawn(token, recipient, amount);
     }
 
     /*------------------------------------------------------------------------*/
