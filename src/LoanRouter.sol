@@ -284,12 +284,29 @@ contract LoanRouter is
     /**
      * @dev Helper function to scale down a value
      * @param value Value
+     * @param roundUp Round up if true
+     * @return Unscaled value
+     */
+    function _unscale(
+        uint256 value,
+        bool roundUp
+    ) internal view returns (uint256) {
+        /* Get scale factor */
+        uint256 scaleFactor_ = SCALING_FACTOR_STORAGE_LOCATION.asUint256().tload();
+
+        /* Round down if not rounding up */
+        return (value % scaleFactor_ == 0 || !roundUp) ? value / scaleFactor_ : value / scaleFactor_ + 1;
+    }
+
+    /**
+     * @dev Helper function to scale down a value
+     * @param value Value
      * @return Unscaled value
      */
     function _unscale(
         uint256 value
     ) internal view returns (uint256) {
-        return value / SCALING_FACTOR_STORAGE_LOCATION.asUint256().tload();
+        return _unscale(value, false);
     }
 
     /**
@@ -493,7 +510,13 @@ contract LoanRouter is
             address owner = _ownerOf(_tokenId(loanTermsHash_, i));
 
             /* Transfer unscaled repayment amount from this contract to token owner */
-            if (repayment > 0) IERC20(loanTerms.currencyToken).safeTransferFrom(msg.sender, owner, repayment);
+            if (repayment > 0) {
+                try IERC20(loanTerms.currencyToken).transfer(owner, repayment) returns (bool success) {
+                    if (!success) emit TransferFailed(address(loanTerms.currencyToken), owner, repayment);
+                } catch {
+                    emit TransferFailed(address(loanTerms.currencyToken), owner, repayment);
+                }
+            }
 
             /* Call onLoanRepayment hook if lender is a contract and implements ILoanRouterHooks interface */
             if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
@@ -534,7 +557,13 @@ contract LoanRouter is
             address owner = _ownerOf(_tokenId(loanTermsHash_, i));
 
             /* Transfer unscaled repayment amount from this contract to token owner */
-            if (repayment > 0) IERC20(loanTerms.currencyToken).safeTransfer(owner, repayment);
+            if (repayment > 0) {
+                try IERC20(loanTerms.currencyToken).transfer(owner, repayment) returns (bool success) {
+                    if (!success) emit TransferFailed(address(loanTerms.currencyToken), owner, repayment);
+                } catch {
+                    emit TransferFailed(address(loanTerms.currencyToken), owner, repayment);
+                }
+            }
 
             /* Call onCollateralLiquidated hook if lender is a contract and implements ILoanRouterHooks interface */
             if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
@@ -814,6 +843,12 @@ contract LoanRouter is
             _returnCollateral(loanTerms);
         }
 
+        /* Transfer total repayment amount to this contract */
+        IERC20(loanTerms.currencyToken)
+            .safeTransferFrom(
+                msg.sender, address(this), _unscale(principalPayment + interestPayment + prepayment, true)
+            );
+
         /* Transfer lender repayments and call onLoanRepayment hooks */
         _repayLenders(
             loanTerms, loanTermsHash_, _unscale(loanState_.balance), trancheInterests, tranchePrincipals, prepayment
@@ -1022,6 +1057,20 @@ contract LoanRouter is
 
         /* Emit liquidation fee rate set event */
         emit LiquidationFeeRateSet(liquidationFeeRate);
+    }
+
+    /**
+     * @inheritdoc ILoanRouter
+     */
+    function withdrawERC20(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(recipient, amount);
+
+        /* Emit ERC20 withdrawn event */
+        emit ERC20Withdrawn(token, recipient, amount);
     }
 
     /*------------------------------------------------------------------------*/
