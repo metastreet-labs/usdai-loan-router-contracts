@@ -297,7 +297,8 @@ contract LoanRouterRepayTest is BaseTest {
         uint256 maxPayments = (LOAN_DURATION / REPAYMENT_INTERVAL) + 5; // Add buffer
 
         while (paymentCount < maxPayments) {
-            (,, uint64 repaymentDeadline, uint256 balance) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+            (, uint64 maturity, uint64 repaymentDeadline, uint256 balance) =
+                loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
 
             if (balance == 0) break; // Loan fully repaid
 
@@ -309,7 +310,7 @@ contract LoanRouterRepayTest is BaseTest {
             uint256 requiredPayment = calculateRequiredRepayment(loanTerms);
 
             // On the last payment, add extra for exit fee
-            if (balance <= requiredPayment + loanTerms.feeSpec.exitFee) {
+            if (maturity == repaymentDeadline) {
                 // This will be the final payment - add enough for exit fee
                 requiredPayment += loanTerms.feeSpec.exitFee + 1000 * 1e6; // Add buffer
             }
