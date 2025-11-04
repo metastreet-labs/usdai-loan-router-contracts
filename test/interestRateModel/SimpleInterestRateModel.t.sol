@@ -324,12 +324,17 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint64 maturity = uint64(block.timestamp) + loanTerms.duration;
         uint256 expectedPrincipalPerPayment = principal / numRepayments; // 1000 each
 
+        // Track principal payments to verify consistency
+        uint256[] memory principalPayments = new uint256[](numRepayments);
+
         // Test that principal payment is constant across all payments
         for (uint256 i = 0; i < numRepayments; i++) {
             uint64 repaymentDeadline = uint64(block.timestamp) + repaymentInterval * uint64(i + 1);
 
             (uint256 principalPayment, uint256 interestPayment,,,) =
                 simpleModel.repayment(loanTerms, currentBalance, repaymentDeadline, maturity, uint64(block.timestamp));
+
+            principalPayments[i] = principalPayment;
 
             if (i < numRepayments - 1) {
                 // All payments except last should be exactly the expected amount
@@ -350,6 +355,18 @@ contract SimpleInterestRateModelTest is BaseTest {
             }
 
             currentBalance -= principalPayment;
+        }
+
+        // Verify all principal payments (except last) are within a few wei of each other
+        for (uint256 i = 1; i < numRepayments - 1; i++) {
+            uint256 diff = principalPayments[i] > principalPayments[0]
+                ? principalPayments[i] - principalPayments[0]
+                : principalPayments[0] - principalPayments[i];
+            assertLe(
+                diff,
+                10,
+                string.concat("Principal payment interval should be consistent at payment ", vm.toString(i + 1))
+            );
         }
 
         // Final balance should be zero (or very close due to rounding)
@@ -388,6 +405,9 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint64 maturity = uint64(block.timestamp) + loanTerms.duration;
         uint256 previousTotalPayment;
 
+        // Track principal payments to verify consistency
+        uint256[] memory principalPayments = new uint256[](numRepayments);
+
         // Test that total payment (principal + interest) decreases over time
         for (uint256 i = 0; i < numRepayments; i++) {
             uint64 repaymentDeadline = uint64(block.timestamp) + repaymentInterval * uint64(i + 1);
@@ -395,6 +415,7 @@ contract SimpleInterestRateModelTest is BaseTest {
             (uint256 principalPayment, uint256 interestPayment,,,) =
                 simpleModel.repayment(loanTerms, currentBalance, repaymentDeadline, maturity, uint64(block.timestamp));
 
+            principalPayments[i] = principalPayment;
             uint256 totalPayment = principalPayment + interestPayment;
 
             if (i > 0) {
@@ -408,6 +429,18 @@ contract SimpleInterestRateModelTest is BaseTest {
 
             previousTotalPayment = totalPayment;
             currentBalance -= principalPayment;
+        }
+
+        // Verify all principal payments (except last) are within a few wei of each other
+        for (uint256 i = 1; i < numRepayments - 1; i++) {
+            uint256 diff = principalPayments[i] > principalPayments[0]
+                ? principalPayments[i] - principalPayments[0]
+                : principalPayments[0] - principalPayments[i];
+            assertLe(
+                diff,
+                10,
+                string.concat("Principal payment interval should be consistent at payment ", vm.toString(i + 1))
+            );
         }
     }
 
@@ -446,12 +479,17 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint256 totalSimpleInterest = 0;
         uint256 totalAmortizedInterest = 0;
 
+        // Track principal payments to verify consistency
+        uint256[] memory simplePrincipalPayments = new uint256[](numRepayments);
+
         for (uint256 i = 0; i < numRepayments; i++) {
             uint64 repaymentDeadline = uint64(block.timestamp) + repaymentInterval * uint64(i + 1);
 
             // Calculate simple model payment
             (uint256 simplePrincipal, uint256 simpleInterest,,,) =
                 simpleModel.repayment(loanTerms, simpleBalance, repaymentDeadline, maturity, uint64(block.timestamp));
+
+            simplePrincipalPayments[i] = simplePrincipal;
 
             // Calculate amortized model payment
             (uint256 amortPrincipal, uint256 amortInterest,,,) = interestRateModel.repayment(
@@ -463,6 +501,18 @@ contract SimpleInterestRateModelTest is BaseTest {
 
             simpleBalance -= simplePrincipal;
             amortizedBalance -= amortPrincipal;
+        }
+
+        // Verify all simple model principal payments (except last) are within a few wei of each other
+        for (uint256 i = 1; i < numRepayments - 1; i++) {
+            uint256 diff = simplePrincipalPayments[i] > simplePrincipalPayments[0]
+                ? simplePrincipalPayments[i] - simplePrincipalPayments[0]
+                : simplePrincipalPayments[0] - simplePrincipalPayments[i];
+            assertLe(
+                diff,
+                10,
+                string.concat("Principal payment interval should be consistent at payment ", vm.toString(i + 1))
+            );
         }
 
         // Simple model should result in less total interest paid
