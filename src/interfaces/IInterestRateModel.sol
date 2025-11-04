@@ -30,6 +30,7 @@ interface IInterestRateModel {
      * @param balance Loan balance
      * @param repaymentDeadline Last repayment timestamp
      * @param maturity Loan maturity timestamp
+     * @param timestamp Current timestamp or maturity timestamp
      * @return principalPayment Principal payment
      * @return interestPayment Interest payment
      * @return trachePrincipals Tranche principals
@@ -40,7 +41,8 @@ interface IInterestRateModel {
         ILoanRouter.LoanTerms calldata terms,
         uint256 balance,
         uint64 repaymentDeadline,
-        uint64 maturity
+        uint64 maturity,
+        uint64 timestamp
     )
         external
         view

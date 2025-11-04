@@ -41,7 +41,7 @@ contract SimpleInterestRateModelTest is BaseTest {
             uint256 interestPayment,
             uint256[] memory trancheInterests,
             uint256[] memory tranchePrincipals,
-        ) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+        ) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Verify payments are positive
         assertGt(principalPayment, 0, "Principal payment should be positive");
@@ -74,7 +74,7 @@ contract SimpleInterestRateModelTest is BaseTest {
             uint256 interestPayment,
             uint256[] memory trancheInterests,
             uint256[] memory tranchePrincipals,
-        ) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+        ) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         trancheInterests;
         tranchePrincipals;
@@ -102,7 +102,7 @@ contract SimpleInterestRateModelTest is BaseTest {
             uint256 interestPayment,
             uint256[] memory tranchePrincipals,
             uint256[] memory trancheInterests,
-        ) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+        ) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Verify arrays have correct length
         assertEq(trancheInterests.length, 3, "Should have 3 tranche interests");
@@ -136,7 +136,7 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint64 repaymentDeadline = uint64(block.timestamp) + REPAYMENT_INTERVAL;
 
         (,,, uint256[] memory trancheInterests,) =
-            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Higher rate tranches should receive more interest
         // loanTerms.trancheSpecs[0].rate = RATE_8_PCT (lowest)
@@ -165,7 +165,7 @@ contract SimpleInterestRateModelTest is BaseTest {
         vm.warp(repaymentDeadline + (REPAYMENT_INTERVAL * 2));
 
         (uint256 principalPayment, uint256 interestPayment,,,) =
-            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Should include 2 intervals worth of payments
         assertGt(principalPayment, 0, "Principal payment should be positive");
@@ -187,7 +187,7 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint64 repaymentDeadline = uint64(block.timestamp) + REPAYMENT_INTERVAL;
 
         (uint256 principalPayment, uint256 interestPayment,,,) =
-            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Should calculate payment for remaining interval
         assertGt(principalPayment, 0, "Principal payment should be positive");
@@ -212,7 +212,7 @@ contract SimpleInterestRateModelTest is BaseTest {
         vm.warp(block.timestamp + 1 days);
 
         (uint256 principalPayment, uint256 interestPayment,,,) =
-            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Should still allow repayment with grace period interest
         assertGt(principalPayment, 0, "Principal payment should be positive");
@@ -233,7 +233,8 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint64 maturity = uint64(block.timestamp) + LOAN_DURATION;
         uint64 repaymentDeadline = uint64(block.timestamp) + REPAYMENT_INTERVAL;
 
-        (uint256 principalPayment,,,,) = simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+        (uint256 principalPayment,,,,) =
+            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         assertGt(principalPayment, 0, "Should calculate payment for small balance");
         assertLe(principalPayment, balance, "Principal payment should not exceed balance");
@@ -249,7 +250,7 @@ contract SimpleInterestRateModelTest is BaseTest {
         uint64 repaymentDeadline = uint64(block.timestamp) + REPAYMENT_INTERVAL;
 
         (uint256 principalPayment, uint256 interestPayment,,,) =
-            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity);
+            simpleModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         assertGt(principalPayment, 0, "Should calculate payment for large balance");
         assertGt(interestPayment, 0, "Interest should be calculated");
@@ -328,7 +329,7 @@ contract SimpleInterestRateModelTest is BaseTest {
             uint64 repaymentDeadline = uint64(block.timestamp) + repaymentInterval * uint64(i + 1);
 
             (uint256 principalPayment, uint256 interestPayment,,,) =
-                simpleModel.repayment(loanTerms, currentBalance, repaymentDeadline, maturity);
+                simpleModel.repayment(loanTerms, currentBalance, repaymentDeadline, maturity, uint64(block.timestamp));
 
             if (i < numRepayments - 1) {
                 // All payments except last should be exactly the expected amount
@@ -392,7 +393,7 @@ contract SimpleInterestRateModelTest is BaseTest {
             uint64 repaymentDeadline = uint64(block.timestamp) + repaymentInterval * uint64(i + 1);
 
             (uint256 principalPayment, uint256 interestPayment,,,) =
-                simpleModel.repayment(loanTerms, currentBalance, repaymentDeadline, maturity);
+                simpleModel.repayment(loanTerms, currentBalance, repaymentDeadline, maturity, uint64(block.timestamp));
 
             uint256 totalPayment = principalPayment + interestPayment;
 
@@ -450,11 +451,12 @@ contract SimpleInterestRateModelTest is BaseTest {
 
             // Calculate simple model payment
             (uint256 simplePrincipal, uint256 simpleInterest,,,) =
-                simpleModel.repayment(loanTerms, simpleBalance, repaymentDeadline, maturity);
+                simpleModel.repayment(loanTerms, simpleBalance, repaymentDeadline, maturity, uint64(block.timestamp));
 
             // Calculate amortized model payment
-            (uint256 amortPrincipal, uint256 amortInterest,,,) =
-                interestRateModel.repayment(loanTerms, amortizedBalance, repaymentDeadline, maturity);
+            (uint256 amortPrincipal, uint256 amortInterest,,,) = interestRateModel.repayment(
+                loanTerms, amortizedBalance, repaymentDeadline, maturity, uint64(block.timestamp)
+            );
 
             totalSimpleInterest += simpleInterest;
             totalAmortizedInterest += amortInterest;

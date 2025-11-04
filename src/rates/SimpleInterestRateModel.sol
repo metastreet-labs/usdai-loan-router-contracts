@@ -79,24 +79,23 @@ contract SimpleInterestRateModel is IInterestRateModel {
         ILoanRouter.LoanTerms calldata terms,
         uint256 balance,
         uint64 repaymentDeadline,
-        uint64 maturity
-    ) external view returns (uint256, uint256, uint256[] memory, uint256[] memory, uint64) {
+        uint64 maturity,
+        uint64 timestamp
+    ) external pure returns (uint256, uint256, uint256[] memory, uint256[] memory, uint64) {
         /* Calculate remaining repayment intervals */
         uint64 remainingRepaymentIntervals = ((maturity - repaymentDeadline) / terms.repaymentInterval) + 1;
 
         /* Calculate pending repayment intervals */
-        uint64 pendingRepaymentIntervals = block.timestamp < repaymentDeadline
+        uint64 pendingRepaymentIntervals = timestamp < repaymentDeadline
             ? 1
             : uint64(
-                Math.min(
-                    (block.timestamp - repaymentDeadline) / terms.repaymentInterval + 1, remainingRepaymentIntervals
-                )
+                Math.min((timestamp - repaymentDeadline) / terms.repaymentInterval + 1, remainingRepaymentIntervals)
             );
 
         /* Calculate grace period elapsed with clamp on grace period duration */
-        uint64 gracePeriodElapsed = block.timestamp < repaymentDeadline
+        uint64 gracePeriodElapsed = timestamp < repaymentDeadline
             ? 0
-            : uint64(Math.min(block.timestamp - repaymentDeadline, terms.gracePeriodDuration));
+            : uint64(Math.min(timestamp - repaymentDeadline, terms.gracePeriodDuration));
 
         /* Compute principal, total weighted rate, and blended interest rate */
         (uint256 principal, uint256 totalWeightedRate, uint256 blendedInterestRate) = _loanMetrics(terms);

@@ -706,7 +706,13 @@ contract LoanRouter is
 
         /* Calculate repayment due */
         (uint256 principalPayment, uint256 interestPayment,,,) = IInterestRateModel(loanTerms.interestRateModel)
-            .repayment(loanTerms, loanState_.balance, loanState_.repaymentDeadline, loanState_.maturity);
+            .repayment(
+                loanTerms,
+                loanState_.balance,
+                loanState_.repaymentDeadline,
+                loanState_.maturity,
+                uint64(block.timestamp)
+            );
 
         /* Calculate principal and interest */
         uint256 repayment = principalPayment + interestPayment;
@@ -753,7 +759,14 @@ contract LoanRouter is
             uint64 servicedIntervals;
             (principalPayment, interestPayment, tranchePrincipals, trancheInterests, servicedIntervals) = IInterestRateModel(
                     loanTerms.interestRateModel
-                ).repayment(loanTerms, loanState_.balance, loanState_.repaymentDeadline, loanState_.maturity);
+                )
+                .repayment(
+                    loanTerms,
+                    loanState_.balance,
+                    loanState_.repaymentDeadline,
+                    loanState_.maturity,
+                    uint64(block.timestamp)
+                );
 
             /* Validate repayment amount */
             if (scaledAmount < principalPayment + interestPayment) revert InvalidAmount();
@@ -930,8 +943,16 @@ contract LoanRouter is
         /* Compute tranche repayments */
         (,, uint256[] memory tranchePrincipals, uint256[] memory trancheInterests,) = IInterestRateModel(
                 loanTerms.interestRateModel
-            ).repayment(loanTerms, loanState_.balance, loanState_.repaymentDeadline, loanState_.maturity);
+            )
+            .repayment(
+                loanTerms,
+                loanState_.balance,
+                loanState_.repaymentDeadline,
+                loanState_.maturity,
+                uint64(loanState_.maturity == loanState_.repaymentDeadline ? block.timestamp : loanState_.maturity)
+            );
 
+        /* Remaining proceeds after liquidation fee */
         uint256 remainingProceeds = scaledProceeds - liquidationFee;
 
         /* Distribute remaining proceeds to tranche principals */
