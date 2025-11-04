@@ -89,8 +89,8 @@ contract LoanRouterLiquidateTest is BaseTest {
         // Warp past grace period (repaymentDeadline + gracePeriodDuration + 1)
         vm.warp(repaymentDeadline + GRACE_PERIOD_DURATION + 1);
 
-        // Set proceeds to 80% of principal (simulating loss on liquidation)
-        uint256 proceeds = (principal * 80) / 100;
+        // Set proceeds to 120% of principal (simulating profit on liquidation)
+        uint256 proceeds = principal * 120 / 100;
 
         // Call liquidate
         vm.startPrank(users.liquidator);
@@ -101,8 +101,17 @@ contract LoanRouterLiquidateTest is BaseTest {
         (ILoanRouter.LoanStatus statusAfter,,,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
         assertEq(uint8(statusAfter), uint8(ILoanRouter.LoanStatus.Liquidated), "Loan should be liquidated");
 
+        // Record lender1 balance before
+        uint256 lender1BalanceBefore = IERC20(USDC).balanceOf(users.lender1);
+
         // Complete liquidation (send proceeds and call callback) - simulates separate transaction
         _completeLiquidation(loanTerms, proceeds);
+
+        // Record lender1 balance after
+        uint256 lender1BalanceAfter = IERC20(USDC).balanceOf(users.lender1);
+
+        // Lender1 should receive proceeds
+        assertGt(lender1BalanceAfter - lender1BalanceBefore, principal, "Lender1 should receive proceeds");
 
         // Verify loan status is now CollateralLiquidated
         (statusAfter,,,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
@@ -159,14 +168,20 @@ contract LoanRouterLiquidateTest is BaseTest {
         // All lenders should receive something (proceeds distributed)
         assertGt(lender1BalanceAfter, lender1BalanceBefore, "Lender1 should receive proceeds");
         assertGt(lender2BalanceAfter, lender2BalanceBefore, "Lender2 should receive proceeds");
-        assertGt(lender3BalanceAfter, lender3BalanceBefore, "Lender3 should receive proceeds");
 
-        // Fee recipient should receive liquidation fee + remaining proceeds
-        assertGt(
-            feeRecipientBalanceAfter,
-            feeRecipientBalanceBefore,
-            "Fee recipient should receive liquidation fee and remaining"
+        // Fee recipient should receive liquidation fee
+        assertGt(feeRecipientBalanceAfter, feeRecipientBalanceBefore, "Fee recipient should receive liquidation fee");
+
+        // Total distributed should equal proceeds
+        assertEq(
+            lender1BalanceAfter - lender1BalanceBefore + lender2BalanceAfter - lender2BalanceBefore
+                + feeRecipientBalanceAfter - feeRecipientBalanceBefore,
+            proceeds,
+            "Total distributed should equal proceeds"
         );
+
+        // Lender3 should receive nothing
+        assertEq(lender3BalanceAfter, lender3BalanceBefore, "Lender3 should receive nothing");
     }
 
     /*------------------------------------------------------------------------*/
@@ -250,18 +265,19 @@ contract LoanRouterLiquidateTest is BaseTest {
 
         uint256 lender1Gain = lender1BalanceAfter - lender1BalanceBefore;
         uint256 lender2Gain = lender2BalanceAfter - lender2BalanceBefore;
-        uint256 lender3Gain = lender3BalanceAfter - lender3BalanceBefore;
 
-        // All lenders should receive something
+        // All lender1 and lender2 should receive something
         assertGt(lender1Gain, 0, "Lender1 should receive proceeds");
         assertGt(lender2Gain, 0, "Lender2 should receive proceeds");
-        assertGt(lender3Gain, 0, "Lender3 should receive proceeds");
+
+        // Lender3 should receive nothing
+        assertEq(lender3BalanceAfter, lender3BalanceBefore, "Lender3 should receive nothing");
 
         // Total distributed should be less than or equal to proceeds after fee
         uint256 liquidationFee = (proceeds * LIQUIDATION_FEE_RATE) / 10000;
         uint256 proceedsAfterFee = proceeds - liquidationFee;
-        uint256 totalDistributed = lender1Gain + lender2Gain + lender3Gain;
-        assertLe(totalDistributed, proceedsAfterFee, "Total distributed should not exceed proceeds after fee");
+        uint256 totalDistributed = lender1Gain + lender2Gain;
+        assertEq(totalDistributed, proceedsAfterFee, "Total distributed should not exceed proceeds after fee");
     }
 
     function test__OnCollateralLiquidated_ZeroProceeds() public {
