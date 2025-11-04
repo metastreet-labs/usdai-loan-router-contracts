@@ -577,7 +577,6 @@ abstract contract BaseTest is Test {
 
         // Scale balance before passing to interest rate model (balance is now unscaled from loan())
         uint256 scaleFactor = 10 ** (18 - IERC20Metadata(loanTerms.currencyToken).decimals());
-        uint256 scaledBalance = balance * scaleFactor;
 
         // Call interest rate model to calculate required payment
         (uint256 principalPayment, uint256 interestPayment,,,) =
@@ -586,9 +585,9 @@ abstract contract BaseTest is Test {
         // Convert from scaled (18 decimals) to token decimals (6 for USDC)
         // Round UP to ensure we don't underpay
         uint256 scaledTotal = principalPayment + interestPayment;
-        uint256 totalPayment =
+        uint256 unscaledTotalPayment =
             (scaledTotal % scaleFactor == 0) ? scaledTotal / scaleFactor : (scaledTotal / scaleFactor) + 1;
 
-        return totalPayment;
+        return unscaledTotalPayment;
     }
 }
