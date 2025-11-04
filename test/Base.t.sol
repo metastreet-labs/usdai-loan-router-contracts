@@ -580,7 +580,7 @@ abstract contract BaseTest is Test {
 
         // Call interest rate model to calculate required payment
         (uint256 principalPayment, uint256 interestPayment,,,) =
-            interestRateModel.repayment(loanTerms, scaledBalance, repaymentDeadline, maturity);
+            interestRateModel.repayment(loanTerms, balance, repaymentDeadline, maturity, uint64(block.timestamp));
 
         // Convert from scaled (18 decimals) to token decimals (6 for USDC)
         // Round UP to ensure we don't underpay
