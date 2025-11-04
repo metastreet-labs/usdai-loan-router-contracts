@@ -109,9 +109,8 @@ contract SimpleInterestRateModel is IInterestRateModel {
             uint256 interestPayment =
                 Math.mulDiv(remainingBalance * blendedInterestRate, terms.repaymentInterval, FIXED_POINT_SCALE);
 
-            /* Calculate principal payment using: principal = loan balance / remaining repayment intervals */
-            uint256 principalPayment =
-                (remainingRepaymentIntervals == 1) ? remainingBalance : balance / remainingRepaymentIntervals;
+            /* Calculate principal payment */
+            uint256 principalPayment = remainingBalance / remainingRepaymentIntervals;
 
             /* Add interest payment to total interest payment */
             totalInterestPayment += interestPayment;
