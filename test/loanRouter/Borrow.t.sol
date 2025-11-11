@@ -116,6 +116,68 @@ contract LoanRouterBorrowTest is BaseTest {
         assertEq(loanRouter.ownerOf(tokenIds[2]), users.lender3, "Lender3 should own NFT 2");
     }
 
+    function test__Borrow_WithDepositTimelock_SingleTranche_Uniswap() public {
+        uint256 principal = 100_000 * 1e6; // 100k USDC
+        uint256 originationFee = 1_000 * 1e6; // 1k USDC
+        uint256 exitFee = 500 * 1e6; // 500 USDC
+
+        // Create loan terms with single tranche
+        ILoanRouter.LoanTerms memory loanTerms = createLoanTerms(users.borrower, principal, 1, originationFee, exitFee);
+
+        // Lender1 deposits to DepositTimelock (convert USDC amount to USDai decimals + 1.6bps for slippage)
+        vm.startPrank(users.lender1);
+        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
+        uint256 depositAmount = (principal * 10016) / 10000;
+        depositTimelock.deposit(address(loanRouter), loanTermsHash, USDT, depositAmount, loanTerms.expiration);
+        vm.stopPrank();
+
+        // Record balances before
+        uint256 borrowerUsdcBefore = IERC20(USDC).balanceOf(users.borrower);
+        uint256 feeRecipientUsdcBefore = IERC20(USDC).balanceOf(users.feeRecipient);
+
+        // Borrower borrows funds
+        vm.startPrank(users.borrower);
+
+        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = createDepositTimelockInfosUniswap(1);
+        loanRouter.borrow(loanTerms, lenderDepositInfos);
+
+        vm.stopPrank();
+
+        // Verify loan state
+        (ILoanRouter.LoanStatus status, uint64 maturity, uint64 repaymentDeadline, uint256 balance) =
+            loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        assertEq(uint8(status), uint8(ILoanRouter.LoanStatus.Active), "Loan should be active");
+        assertEq(maturity, uint64(block.timestamp) + LOAN_DURATION, "Maturity should be set");
+        assertEq(repaymentDeadline, uint64(block.timestamp) + REPAYMENT_INTERVAL, "Repayment deadline should be set");
+        assertEq(balance, principal * 1e12, "Balance should equal principal");
+
+        // Verify borrower received principal minus fee
+        assertEq(
+            IERC20(USDC).balanceOf(users.borrower) - borrowerUsdcBefore,
+            principal - originationFee,
+            "Borrower should receive principal minus origination fee"
+        );
+
+        // Verify fee recipient received origination fee
+        assertEq(
+            IERC20(USDC).balanceOf(users.feeRecipient) - feeRecipientUsdcBefore,
+            originationFee,
+            "Fee recipient should receive origination fee"
+        );
+
+        // Verify lender received tokenized position
+        uint256[] memory tokenIds = loanRouter.loanTokenIds(loanTerms);
+        assertEq(loanRouter.ownerOf(tokenIds[0]), users.lender1, "Lender1 should own the NFT position");
+
+        // Verify collateral is locked in LoanRouter
+        assertEq(
+            IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId),
+            address(loanRouter),
+            "Collateral should be locked in LoanRouter"
+        );
+    }
+
     /*------------------------------------------------------------------------*/
     /* Test: Borrow with signature-based funding */
     /*------------------------------------------------------------------------*/

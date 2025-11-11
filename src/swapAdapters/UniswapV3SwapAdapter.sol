@@ -142,15 +142,15 @@ contract UniswapV3SwapAdapter is ISwapAdapter {
             revert InvalidPathFormat();
         }
 
-        /* Get input token */
-        address tokenInput = address(bytes20(path[:PATH_ADDR_SIZE]));
+        /* Get output token */
+        address tokenOutput = address(bytes20(path[:PATH_ADDR_SIZE]));
 
-        /* Calculate position of output token */
+        /* Calculate position of input token */
         uint256 numHops = (path.length - PATH_ADDR_SIZE) / PATH_NEXT_OFFSET;
         uint256 outputTokenIndex = numHops * PATH_NEXT_OFFSET;
 
-        /* Get output token */
-        address tokenOutput = address(bytes20(path[outputTokenIndex:outputTokenIndex + PATH_ADDR_SIZE]));
+        /* Get input token */
+        address tokenInput = address(bytes20(path[outputTokenIndex:outputTokenIndex + PATH_ADDR_SIZE]));
 
         return (tokenInput, tokenOutput);
     }
