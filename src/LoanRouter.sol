@@ -25,6 +25,8 @@ import "./interfaces/ILoanRouterHooks.sol";
 import "./interfaces/external/ICollateralLiquidator.sol";
 import "./interfaces/external/ICollateralLiquidationReceiver.sol";
 
+import "./libs/ExcessivelySafeCall.sol";
+
 import "./LoanTermsLogic.sol";
 
 /**
@@ -43,6 +45,7 @@ contract LoanRouter is
 {
     using SafeERC20 for IERC20;
     using TransientSlot for *;
+    using ExcessivelySafeCall for *;
 
     /*------------------------------------------------------------------------*/
     /* Constants */
@@ -62,6 +65,11 @@ contract LoanRouter is
      * @notice Hook gas limit
      */
     uint256 internal constant HOOK_GAS_LIMIT = 500_000;
+
+    /**
+     * @notice Supports interface gas limit
+     */
+    uint256 internal constant SUPPORTS_INTERFACE_GAS_LIMIT = 12_000;
 
     /**
      * @notice Scaling factor transient slot
@@ -528,7 +536,7 @@ contract LoanRouter is
             }
 
             /* Call onLoanRepayment hook if lender is a contract and implements ILoanRouterHooks interface */
-            if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
+            if (_supportsHooksInterface(owner)) {
                 try ILoanRouterHooks(owner).onLoanRepayment{gas: HOOK_GAS_LIMIT}(
                     loanTerms, loanTermsHash_, i, loanBalance, principal, interest, prepayment
                 ) {}
@@ -577,7 +585,7 @@ contract LoanRouter is
             }
 
             /* Call onCollateralLiquidated hook if lender is a contract and implements ILoanRouterHooks interface */
-            if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
+            if (_supportsHooksInterface(owner)) {
                 try ILoanRouterHooks(owner).onLoanCollateralLiquidated{gas: HOOK_GAS_LIMIT}(
                     loanTerms, loanTermsHash_, i, principal, interest
                 ) {}
@@ -627,6 +635,28 @@ contract LoanRouter is
 
         /* Emit transfer failed event */
         emit TransferFailed(address(token), feeRecipient, intendedRecipient, amount);
+    }
+
+    /**
+     * @notice Check if target supports ILoanRouterHooks interface
+     * @param target Target address
+     * @return True if target supports ILoanRouterHooks interface
+     */
+    function _supportsHooksInterface(
+        address target
+    ) internal view returns (bool) {
+        /* If target is not a contract */
+        if (target.code.length == 0) return false;
+
+        /* Check if target supports ILoanRouterHooks interface */
+        (bool success, bytes memory returnData) = ExcessivelySafeCall.excessivelySafeStaticCall(
+            target,
+            SUPPORTS_INTERFACE_GAS_LIMIT,
+            32,
+            abi.encodeWithSelector(IERC165.supportsInterface.selector, type(ILoanRouterHooks).interfaceId)
+        );
+
+        return success && returnData.length >= 32 && abi.decode(returnData, (bool));
     }
 
     /*------------------------------------------------------------------------*/
@@ -978,7 +1008,7 @@ contract LoanRouter is
             address owner = _ownerOf(_tokenId(loanTermsHash_, i));
 
             /* Call onLoanLiquidated hook if lender is a contract and implements ILoanRouterHooks interface */
-            if (owner.code.length != 0 && IERC165(owner).supportsInterface(type(ILoanRouterHooks).interfaceId)) {
+            if (_supportsHooksInterface(owner)) {
                 try ILoanRouterHooks(owner).onLoanLiquidated{gas: HOOK_GAS_LIMIT}(loanTerms, loanTermsHash_, i) {}
                 catch (bytes memory reason) {
                     /* Emit hook failed event */
