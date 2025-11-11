@@ -269,9 +269,6 @@ abstract contract BaseTest is Test {
         deal(USDAI, users.lender1, 10_000_000 * 1e18); // 10M USDai
         deal(USDAI, users.lender2, 10_000_000 * 1e18); // 10M USDai
         deal(USDAI, users.lender3, 10_000_000 * 1e18); // 10M USDai
-
-        // Fund USDai contract with USDC so it can fulfill withdrawals
-        deal(USDC, USDAI, 100_000_000 * 1e6); // 100M USDC to USDai contract
     }
 
     function setApprovals() internal {
