@@ -14,6 +14,7 @@ import {LoanRouter} from "src/LoanRouter.sol";
 import {DepositTimelock} from "src/DepositTimelock.sol";
 import {AmortizedInterestRateModel} from "src/rates/AmortizedInterestRateModel.sol";
 import {USDaiSwapAdapter} from "src/swapAdapters/USDaiSwapAdapter.sol";
+import {UniswapV3SwapAdapter} from "src/swapAdapters/UniswapV3SwapAdapter.sol";
 import {LoanTermsLogic} from "src/LoanTermsLogic.sol";
 import {ILoanRouter} from "src/interfaces/ILoanRouter.sol";
 
@@ -30,10 +31,12 @@ abstract contract BaseTest is Test {
 
     /* Arbitrum Mainnet addresses */
     address internal constant USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+    address internal constant USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
     address internal constant USDAI = 0x0A1a1A107E45b7Ced86833863f482BC5f4ed82EF;
     address internal constant STAKED_USDAI = 0x0B2b2B2076d95dda7817e785989fE353fe955ef9;
     address internal constant COLLATERAL_WRAPPER = 0xC2356bf42c8910fD6c28Ee6C843bc0E476ee5D26;
     address internal constant ENGLISH_AUCTION_LIQUIDATOR = 0xceb5856C525bbb654EEA75A8852A0F51073C4a58;
+    address internal constant UNISWAP_V3_ROUTER = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
 
     /* Time constants */
     uint64 internal constant LOAN_DURATION = 1080 days; // 3 years - 5 days
@@ -95,6 +98,7 @@ abstract contract BaseTest is Test {
 
     AmortizedInterestRateModel internal interestRateModel;
     USDaiSwapAdapter internal usdaiSwapAdapter;
+    UniswapV3SwapAdapter internal uniswapV3SwapAdapter;
 
     TestERC721 internal testNFT;
 
@@ -134,6 +138,7 @@ abstract contract BaseTest is Test {
         deployLoanRouter();
         deployInterestRateModel();
         deployUSDaiSwapAdapter();
+        deployUniswapV3SwapAdapter();
 
         // Setup
         setupCollateralWrapper();
@@ -194,6 +199,12 @@ abstract contract BaseTest is Test {
     function deployUSDaiSwapAdapter() internal {
         vm.startPrank(users.deployer);
         usdaiSwapAdapter = new USDaiSwapAdapter(USDAI);
+        vm.stopPrank();
+    }
+
+    function deployUniswapV3SwapAdapter() internal {
+        vm.startPrank(users.deployer);
+        uniswapV3SwapAdapter = new UniswapV3SwapAdapter(UNISWAP_V3_ROUTER);
         vm.stopPrank();
     }
 
@@ -270,6 +281,11 @@ abstract contract BaseTest is Test {
         deal(USDAI, users.lender2, 10_000_000 * 1e18); // 10M USDai
         deal(USDAI, users.lender3, 10_000_000 * 1e18); // 10M USDai
 
+        // Give lenders USDT using deal()
+        deal(USDT, users.lender1, 10_000_000 * 1e6); // 10M USDT
+        deal(USDT, users.lender2, 10_000_000 * 1e6); // 10M USDT
+        deal(USDT, users.lender3, 10_000_000 * 1e6); // 10M USDT
+
         // Fund USDai contract with USDC so it can fulfill withdrawals
         deal(USDC, USDAI, 100_000_000 * 1e6); // 100M USDC to USDai contract
     }
@@ -290,13 +306,17 @@ abstract contract BaseTest is Test {
         for (uint256 i = 0; i < lenders.length; i++) {
             vm.startPrank(lenders[i]);
             IERC20(USDC).approve(address(loanRouter), type(uint256).max);
+            IERC20(USDC).approve(address(depositTimelock), type(uint256).max);
             IERC20(USDAI).approve(address(depositTimelock), type(uint256).max);
+            IERC20(USDT).approve(address(depositTimelock), type(uint256).max);
             vm.stopPrank();
         }
 
         // Setup swap adapter for USDAI in deposit timelock
         vm.startPrank(users.deployer);
         depositTimelock.addSwapAdapter(USDAI, address(usdaiSwapAdapter));
+        depositTimelock.addSwapAdapter(USDC, address(uniswapV3SwapAdapter));
+        depositTimelock.addSwapAdapter(USDT, address(uniswapV3SwapAdapter));
         vm.stopPrank();
     }
 
@@ -420,6 +440,24 @@ abstract contract BaseTest is Test {
             infos[i] = ILoanRouter.LenderDepositInfo({
                 depositType: ILoanRouter.DepositType.DepositTimelock,
                 data: "" // Empty swap data for USDai -> USDC
+            });
+        }
+        return infos;
+    }
+
+    /**
+     * @notice Create LenderDepositInfo array for DepositTimelock funding with Uniswap swap adapter
+     * @param numTranches Number of tranches
+     * @return LenderDepositInfo array with DepositTimelock type
+     */
+    function createDepositTimelockInfosUniswap(
+        uint256 numTranches
+    ) internal pure returns (ILoanRouter.LenderDepositInfo[] memory) {
+        ILoanRouter.LenderDepositInfo[] memory infos = new ILoanRouter.LenderDepositInfo[](numTranches);
+        for (uint256 i = 0; i < numTranches; i++) {
+            infos[i] = ILoanRouter.LenderDepositInfo({
+                depositType: ILoanRouter.DepositType.DepositTimelock,
+                data: abi.encodePacked(address(USDC), uint24(100), address(USDT)) // Empty swap data for USDai -> USDC
             });
         }
         return infos;
