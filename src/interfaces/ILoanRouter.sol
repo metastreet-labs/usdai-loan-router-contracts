@@ -355,6 +355,17 @@ interface ILoanRouter {
     ) external view returns (uint256 amount);
 
     /**
+     * @notice Quote repayment for loan
+     * @param loanTerms Loan terms
+     * @param timestamp Repayment timestamp
+     * @return amount Repayment amount
+     */
+    function quote(
+        LoanTerms calldata loanTerms,
+        uint64 timestamp
+    ) external view returns (uint256 amount);
+
+    /**
      * @notice Repay loan with optional prepayment
      * @param loanTerms Loan terms
      * @param amount Amount
