@@ -620,6 +620,42 @@ contract LoanRouter is
         return success && returnData.length >= 32 && abi.decode(returnData, (bool));
     }
 
+    /**
+     * @notice Quote repayment for loan
+     * @param loanTerms Loan terms
+     * @param timestamp Timestamp
+     * @return amount Repayment amount
+     */
+    function _quote(
+        LoanTerms calldata loanTerms,
+        uint64 timestamp
+    ) internal view returns (uint256 amount) {
+        /* Get loan state */
+        bytes32 loanTermsHash_ = _hashLoanTerms(loanTerms);
+        LoanState storage loanState_ = _getLoansStorage().loans[loanTermsHash_];
+
+        /* If loan is not active */
+        if (loanState_.status != LoanStatus.Active) return 0;
+
+        /* If no repayment is due */
+        if (timestamp < loanState_.repaymentDeadline - loanTerms.repaymentInterval) return 0;
+
+        /* Calculate repayment due */
+        (uint256 principalPayment, uint256 interestPayment,,,) = IInterestRateModel(loanTerms.interestRateModel)
+            .repayment(loanTerms, loanState_.balance, loanState_.repaymentDeadline, loanState_.maturity, timestamp);
+
+        /* Calculate principal and interest */
+        uint256 repayment = principalPayment + interestPayment;
+
+        /* Calculate fees due */
+        uint256 feesPayment = loanState_.balance == principalPayment ? loanTerms.feeSpec.exitFee : 0;
+
+        /* Calculate scale factor */
+        uint256 scaleFactor_ = 10 ** (18 - IERC20Metadata(loanTerms.currencyToken).decimals());
+
+        return (repayment % scaleFactor_ != 0 ? repayment / scaleFactor_ + 1 : repayment / scaleFactor_) + feesPayment;
+    }
+
     /*------------------------------------------------------------------------*/
     /* Getters */
     /*------------------------------------------------------------------------*/
@@ -753,36 +789,17 @@ contract LoanRouter is
     function quote(
         LoanTerms calldata loanTerms
     ) external view returns (uint256 amount) {
-        /* Get loan state */
-        bytes32 loanTermsHash_ = _hashLoanTerms(loanTerms);
-        LoanState storage loanState_ = _getLoansStorage().loans[loanTermsHash_];
+        return _quote(loanTerms, uint64(block.timestamp));
+    }
 
-        /* If loan is not active */
-        if (loanState_.status != LoanStatus.Active) return 0;
-
-        /* If no repayment is due */
-        if (block.timestamp < loanState_.repaymentDeadline - loanTerms.repaymentInterval) return 0;
-
-        /* Calculate repayment due */
-        (uint256 principalPayment, uint256 interestPayment,,,) = IInterestRateModel(loanTerms.interestRateModel)
-            .repayment(
-                loanTerms,
-                loanState_.balance,
-                loanState_.repaymentDeadline,
-                loanState_.maturity,
-                uint64(block.timestamp)
-            );
-
-        /* Calculate principal and interest */
-        uint256 repayment = principalPayment + interestPayment;
-
-        /* Calculate fees due */
-        uint256 feesPayment = loanState_.balance == principalPayment ? loanTerms.feeSpec.exitFee : 0;
-
-        /* Calculate scale factor */
-        uint256 scaleFactor_ = 10 ** (18 - IERC20Metadata(loanTerms.currencyToken).decimals());
-
-        return (repayment % scaleFactor_ != 0 ? repayment / scaleFactor_ + 1 : repayment / scaleFactor_) + feesPayment;
+    /**
+     * @inheritdoc ILoanRouter
+     */
+    function quote(
+        LoanTerms calldata loanTerms,
+        uint64 timestamp
+    ) external view returns (uint256 amount) {
+        return _quote(loanTerms, timestamp);
     }
 
     /**
@@ -1010,7 +1027,11 @@ contract LoanRouter is
                 loanTerms.interestRateModel
             )
             .repayment(
-                loanTerms, loanState_.balance, loanState_.repaymentDeadline, loanState_.maturity, loanState_.maturity
+                loanTerms,
+                loanState_.balance,
+                loanState_.repaymentDeadline,
+                uint64(loanState_.maturity == loanState_.repaymentDeadline ? block.timestamp : loanState_.maturity),
+                loanState_.maturity
             );
 
         /* Remaining proceeds after liquidation fee */
