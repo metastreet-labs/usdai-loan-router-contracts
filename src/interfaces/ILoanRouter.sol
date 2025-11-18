@@ -353,22 +353,26 @@ interface ILoanRouter {
     /**
      * @notice Quote repayment for loan
      * @param loanTerms Loan terms
-     * @return amount Repayment amount
+     * @return principalPayment Principal payment
+     * @return interestPayment Interest payment
+     * @return feesPayment Fees payment
      */
     function quote(
         LoanTerms calldata loanTerms
-    ) external view returns (uint256 amount);
+    ) external view returns (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment);
 
     /**
      * @notice Quote repayment for loan
      * @param loanTerms Loan terms
      * @param timestamp Repayment timestamp
-     * @return amount Repayment amount
+     * @return principalPayment Principal payment
+     * @return interestPayment Interest payment
+     * @return feesPayment Fees payment
      */
     function quote(
         LoanTerms calldata loanTerms,
         uint64 timestamp
-    ) external view returns (uint256 amount);
+    ) external view returns (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment);
 
     /**
      * @notice Repay loan with optional prepayment

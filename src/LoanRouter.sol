@@ -631,28 +631,27 @@ contract LoanRouter is
      * @notice Quote repayment for loan
      * @param loanTerms Loan terms
      * @param timestamp Timestamp
-     * @return amount Repayment amount
+     * @return principalPayment Principal payment
+     * @return interestPayment Interest payment
+     * @return feesPayment Fees payment
      */
     function _quote(
         LoanTerms calldata loanTerms,
         uint64 timestamp
-    ) internal view returns (uint256 amount) {
+    ) internal view returns (uint256, uint256, uint256) {
         /* Get loan state */
         bytes32 loanTermsHash_ = _hashLoanTerms(loanTerms);
         LoanState storage loanState_ = _getLoansStorage().loans[loanTermsHash_];
 
         /* If loan is not active */
-        if (loanState_.status != LoanStatus.Active) return 0;
+        if (loanState_.status != LoanStatus.Active) return (0, 0, 0);
 
         /* If no repayment is due */
-        if (timestamp < loanState_.repaymentDeadline - loanTerms.repaymentInterval) return 0;
+        if (timestamp < loanState_.repaymentDeadline - loanTerms.repaymentInterval) return (0, 0, 0);
 
         /* Calculate repayment due */
         (uint256 principalPayment, uint256 interestPayment,,,) = IInterestRateModel(loanTerms.interestRateModel)
             .repayment(loanTerms, loanState_.balance, loanState_.repaymentDeadline, loanState_.maturity, timestamp);
-
-        /* Calculate principal and interest */
-        uint256 repayment = principalPayment + interestPayment;
 
         /* Calculate fees due */
         uint256 feesPayment = loanState_.balance == principalPayment ? loanTerms.feeSpec.exitFee : 0;
@@ -660,7 +659,13 @@ contract LoanRouter is
         /* Calculate scale factor */
         uint256 scaleFactor_ = 10 ** (18 - IERC20Metadata(loanTerms.currencyToken).decimals());
 
-        return (repayment % scaleFactor_ != 0 ? repayment / scaleFactor_ + 1 : repayment / scaleFactor_) + feesPayment;
+        return (
+            (principalPayment % scaleFactor_ != 0
+                    ? principalPayment / scaleFactor_ + 1
+                    : principalPayment / scaleFactor_),
+            (interestPayment % scaleFactor_ != 0 ? interestPayment / scaleFactor_ + 1 : interestPayment / scaleFactor_),
+            feesPayment
+        );
     }
 
     /*------------------------------------------------------------------------*/
@@ -802,7 +807,7 @@ contract LoanRouter is
      */
     function quote(
         LoanTerms calldata loanTerms
-    ) external view returns (uint256 amount) {
+    ) external view returns (uint256, uint256, uint256) {
         return _quote(loanTerms, uint64(block.timestamp));
     }
 
@@ -812,7 +817,7 @@ contract LoanRouter is
     function quote(
         LoanTerms calldata loanTerms,
         uint64 timestamp
-    ) external view returns (uint256 amount) {
+    ) external view returns (uint256, uint256, uint256) {
         return _quote(loanTerms, timestamp);
     }
 
