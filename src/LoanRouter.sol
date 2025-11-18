@@ -512,9 +512,9 @@ contract LoanRouter is
             /* Transfer unscaled repayment amount from this contract to token owner */
             if (repayment > 0) {
                 try IERC20(loanTerms.currencyToken).transfer(owner, repayment) returns (bool success) {
-                    if (!success) emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                    if (!success) _redirectRepayment(IERC20(loanTerms.currencyToken), owner, repayment);
                 } catch {
-                    emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                    _redirectRepayment(IERC20(loanTerms.currencyToken), owner, repayment);
                 }
             }
 
@@ -559,9 +559,9 @@ contract LoanRouter is
             /* Transfer unscaled repayment amount from this contract to token owner */
             if (repayment > 0) {
                 try IERC20(loanTerms.currencyToken).transfer(owner, repayment) returns (bool success) {
-                    if (!success) emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                    if (!success) _redirectRepayment(IERC20(loanTerms.currencyToken), owner, repayment);
                 } catch {
-                    emit TransferFailed(loanTerms.currencyToken, owner, repayment);
+                    _redirectRepayment(IERC20(loanTerms.currencyToken), owner, repayment);
                 }
             }
 
@@ -659,6 +659,27 @@ contract LoanRouter is
             (interestPayment % scaleFactor_ != 0 ? interestPayment / scaleFactor_ + 1 : interestPayment / scaleFactor_),
             feesPayment
         );
+    }
+
+    /**
+     * @notice Redirect repayment to fee recipient
+     * @param token Token
+     * @param intendedRecipient Intended recipient address
+     * @param amount Amount
+     */
+    function _redirectRepayment(
+        IERC20 token,
+        address intendedRecipient,
+        uint256 amount
+    ) internal {
+        /* Get fee recipient */
+        address feeRecipient = _getFeeStorage().recipient;
+
+        /* Transfer token to recipient */
+        token.safeTransfer(feeRecipient, amount);
+
+        /* Emit transfer failed event */
+        emit TransferFailed(address(token), feeRecipient, intendedRecipient, amount);
     }
 
     /*------------------------------------------------------------------------*/
@@ -1101,23 +1122,6 @@ contract LoanRouter is
 
         /* Emit liquidation fee rate set event */
         emit LiquidationFeeRateSet(liquidationFeeRate);
-    }
-
-    /**
-     * @notice Withdraw ERC20 tokens
-     * @param token Token address
-     * @param amount Amount to withdraw
-     * @param recipient Recipient address
-     */
-    function withdrawERC20(
-        address token,
-        address recipient,
-        uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        IERC20(token).safeTransfer(recipient, amount);
-
-        /* Emit ERC20 withdrawn event */
-        emit ERC20Withdrawn(token, recipient, amount);
     }
 
     /*------------------------------------------------------------------------*/

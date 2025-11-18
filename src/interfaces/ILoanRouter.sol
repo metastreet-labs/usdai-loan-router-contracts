@@ -236,10 +236,13 @@ interface ILoanRouter {
     /**
      * @notice Emitted when transfer failed
      * @param token Token address
-     * @param recipient Intended recipient address
+     * @param recipient Recipient address
+     * @param intendedRecipient Intended recipient address
      * @param amount Amount
      */
-    event TransferFailed(address indexed token, address recipient, uint256 amount);
+    event TransferFailed(
+        address indexed token, address indexed recipient, address indexed intendedRecipient, uint256 amount
+    );
 
     /**
      * @notice Emitted when hook failed
