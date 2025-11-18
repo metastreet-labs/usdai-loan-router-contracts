@@ -55,7 +55,9 @@ contract LoanRouterQuoteTest is BaseTest {
         // Warp one second into loan
         warp(1);
 
-        assertEq(loanRouter.quote(loanTerms), 3220362657);
+        (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment) = loanRouter.quote(loanTerms);
+
+        assertEq(principalPayment + interestPayment + feesPayment, 3220362657);
     }
 
     /*------------------------------------------------------------------------*/
@@ -73,7 +75,9 @@ contract LoanRouterQuoteTest is BaseTest {
         // Warp to second repayment window (30 days late)
         vm.warp(repaymentDeadline + 1); // Just past first deadline
 
-        assertEq(loanRouter.quote(loanTerms), 3220362815);
+        (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment) = loanRouter.quote(loanTerms);
+
+        assertEq(principalPayment + interestPayment + feesPayment, 3220362816);
     }
 
     function test__Quote_LatePayment_TwoIntervalsLate() public {
@@ -86,7 +90,9 @@ contract LoanRouterQuoteTest is BaseTest {
         // Miss two repayment windows (60 days late)
         vm.warp(repaymentDeadline + (REPAYMENT_INTERVAL * 2) + 1);
 
-        assertEq(loanRouter.quote(loanTerms), 10072046873);
+        (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment) = loanRouter.quote(loanTerms);
+
+        assertEq(principalPayment + interestPayment + feesPayment, 10072046873);
     }
 
     /*------------------------------------------------------------------------*/
@@ -99,7 +105,9 @@ contract LoanRouterQuoteTest is BaseTest {
         uint256 exitFee = principal / 200; // 0.5% exit fee
         ILoanRouter.LoanTerms memory loanTerms = createLoanTerms(users.borrower, principal, 1, originationFee, exitFee);
 
-        assertEq(loanRouter.quote(loanTerms), 0);
+        (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment) = loanRouter.quote(loanTerms);
+
+        assertEq(principalPayment + interestPayment + feesPayment, 0);
     }
 
     /*------------------------------------------------------------------------*/
@@ -133,10 +141,10 @@ contract LoanRouterQuoteTest is BaseTest {
         (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanTermsHash);
         vm.warp(repaymentDeadline - REPAYMENT_INTERVAL + 1);
 
-        uint256 firstQuote = loanRouter.quote(loanTerms);
+        (uint256 principalPayment1, uint256 interestPayment1, uint256 feesPayment1) = loanRouter.quote(loanTerms);
 
         vm.startPrank(users.borrower);
-        loanRouter.repay(loanTerms, firstQuote); // Add buffer
+        loanRouter.repay(loanTerms, principalPayment1 + interestPayment1 + feesPayment1); // Add buffer
         vm.stopPrank();
 
         // Warp to final repayment window
@@ -144,13 +152,13 @@ contract LoanRouterQuoteTest is BaseTest {
         vm.warp(newRepaymentDeadline - REPAYMENT_INTERVAL + 1);
 
         // Get quote for final repayment - should include exit fee
-        uint256 finalQuote = loanRouter.quote(loanTerms);
+        (uint256 principalPayment2, uint256 interestPayment2, uint256 feesPayment2) = loanRouter.quote(loanTerms);
 
         // Record logs to capture LoanRepaid event
         vm.recordLogs();
 
         vm.startPrank(users.borrower);
-        loanRouter.repay(loanTerms, finalQuote);
+        loanRouter.repay(loanTerms, principalPayment2 + interestPayment2 + feesPayment2);
         vm.stopPrank();
 
         // Get recorded logs
@@ -182,7 +190,9 @@ contract LoanRouterQuoteTest is BaseTest {
         // Ensure we found the LoanRepaid event
         assertTrue(foundLoanRepaid, "LoanRepaid event not found");
 
+        (uint256 principalPayment3, uint256 interestPayment3, uint256 feesPayment3) = loanRouter.quote(loanTerms);
+
         // Verify loan is repaid
-        assertEq(loanRouter.quote(loanTerms), 0);
+        assertEq(principalPayment3 + interestPayment3 + feesPayment3, 0);
     }
 }
