@@ -100,8 +100,11 @@ contract SimpleInterestRateModel is IInterestRateModel {
         /* Compute principal, total weighted rate, and blended interest rate */
         (uint256 principal, uint256 totalWeightedRate, uint256 blendedInterestRate) = _loanMetrics(terms);
 
-        /* Calculate total interest payment and principal payment */
-        uint256 totalPrincipalPayment;
+        /* Calculate principal payment */
+        uint256 principalPayment = balance / remainingRepaymentIntervals;
+        uint256 totalPrincipalPayment = principalPayment * pendingRepaymentIntervals;
+
+        /* Calculate total interest payment */
         uint256 totalInterestPayment;
         uint256 remainingBalance = balance;
         for (uint256 i; i < pendingRepaymentIntervals; i++) {
@@ -109,14 +112,8 @@ contract SimpleInterestRateModel is IInterestRateModel {
             uint256 interestPayment =
                 Math.mulDiv(remainingBalance * blendedInterestRate, terms.repaymentInterval, FIXED_POINT_SCALE);
 
-            /* Calculate principal payment */
-            uint256 principalPayment = remainingBalance / remainingRepaymentIntervals;
-
             /* Add interest payment to total interest payment */
             totalInterestPayment += interestPayment;
-
-            /* Add principal payment to total principal payment */
-            totalPrincipalPayment += principalPayment;
 
             /* Simulate new balance after repayment */
             remainingBalance -= principalPayment;
