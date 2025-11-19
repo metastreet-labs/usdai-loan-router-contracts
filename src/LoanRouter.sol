@@ -588,10 +588,9 @@ contract LoanRouter is
     function _returnCollateral(
         LoanTerms calldata loanTerms
     ) internal {
-        /* Transfer exit fee from borrower to recipient */
+        /* Transfer exit fee from this contract to fee recipient */
         if (loanTerms.feeSpec.exitFee > 0) {
-            IERC20(loanTerms.currencyToken)
-                .safeTransferFrom(msg.sender, _getFeeStorage().recipient, loanTerms.feeSpec.exitFee);
+            IERC20(loanTerms.currencyToken).safeTransfer(_getFeeStorage().recipient, loanTerms.feeSpec.exitFee);
         }
 
         /* Transfer collateral from this contract to borrower */
@@ -812,9 +811,6 @@ contract LoanRouter is
             prepayment =
                 Math.min(loanState_.balance - principalPayment, scaledAmount - principalPayment - interestPayment);
 
-            /* Reduce scaled amount */
-            scaledAmount -= principalPayment + interestPayment + prepayment;
-
             /* Reduce loan balance */
             loanState_.balance -= principalPayment + prepayment;
 
@@ -824,30 +820,37 @@ contract LoanRouter is
             /* Calculate prepayment */
             prepayment = Math.min(loanState_.balance, scaledAmount);
 
-            /* Reduce scaled amount */
-            scaledAmount -= prepayment;
-
             /* Reduce loan balance */
             loanState_.balance -= prepayment;
         }
 
-        /* If loan has been fully repaid */
-        if (loanState_.balance == 0) {
+        /* Check if loan is fully repaid */
+        bool isFullyRepaid = loanState_.balance == 0;
+
+        /* Validate repayment amount */
+        if (
+            scaledAmount
+                < principalPayment + interestPayment + prepayment
+                    + (isFullyRepaid ? _scale(loanTerms.feeSpec.exitFee) : 0)
+        ) revert InvalidAmount();
+
+        /* Transfer total repayment amount (and exit fee if any) to this contract */
+        IERC20(loanTerms.currencyToken)
+            .safeTransferFrom(
+                msg.sender,
+                address(this),
+                _unscale(principalPayment + interestPayment + prepayment, true)
+                    + (isFullyRepaid ? loanTerms.feeSpec.exitFee : 0)
+            );
+
+        /* If loan is fully repaid, transfer exit fee to fee recipient and return collateral */
+        if (isFullyRepaid) {
             /* Update loan status */
             loanState_.status = LoanStatus.Repaid;
 
-            /* Validate exit fee is covered in leftover amount */
-            if (scaledAmount < _scale(loanTerms.feeSpec.exitFee)) revert InvalidAmount();
-
-            /* Charge exit fee and return collateral */
+            /* Transfer exit fee to fee recipient and return collateral */
             _returnCollateral(loanTerms);
         }
-
-        /* Transfer total repayment amount to this contract */
-        IERC20(loanTerms.currencyToken)
-            .safeTransferFrom(
-                msg.sender, address(this), _unscale(principalPayment + interestPayment + prepayment, true)
-            );
 
         /* Transfer lender repayments and call onLoanRepayment hooks */
         _repayLenders(
@@ -861,8 +864,8 @@ contract LoanRouter is
             _unscale(principalPayment),
             _unscale(interestPayment),
             _unscale(prepayment),
-            loanState_.status == LoanStatus.Repaid ? loanTerms.feeSpec.exitFee : 0,
-            loanState_.status == LoanStatus.Repaid
+            isFullyRepaid ? loanTerms.feeSpec.exitFee : 0,
+            isFullyRepaid
         );
     }
 
