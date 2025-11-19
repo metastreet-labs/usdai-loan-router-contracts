@@ -121,6 +121,9 @@ library LoanTermsLogic {
         if (loanTerms.duration % loanTerms.repaymentInterval != 0) {
             revert ILoanRouter.InvalidLoanTerms("Duration not multiple of Repayment Interval");
         }
+        if (loanTerms.gracePeriodDuration > loanTerms.repaymentInterval) {
+            revert ILoanRouter.InvalidLoanTerms("Grace Period Duration");
+        }
         if (loanTerms.interestRateModel == address(0)) revert ILoanRouter.InvalidLoanTerms("Interest Rate Model");
         if (loanTerms.trancheSpecs.length == 0) revert ILoanRouter.InvalidLoanTerms("Tranche Specs");
         if (loanTerms.trancheSpecs.length > 32) revert ILoanRouter.InvalidLoanTerms("Tranche Specs");
