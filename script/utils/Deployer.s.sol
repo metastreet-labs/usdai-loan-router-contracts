@@ -24,6 +24,8 @@ contract Deployer is BaseScript {
     struct Deployment {
         address loanRouter;
         address depositTimelock;
+        address simpleInterestRateModel;
+        address amortizedInterestRateModel;
     }
 
     /*--------------------------------------------------------------------------*/
@@ -100,6 +102,8 @@ contract Deployer is BaseScript {
 
         json = stdJson.serialize("", "loanRouter", _deployment.loanRouter);
         json = stdJson.serialize("", "depositTimelock", _deployment.depositTimelock);
+        json = stdJson.serialize("", "simpleInterestRateModel", _deployment.simpleInterestRateModel);
+        json = stdJson.serialize("", "amortizedInterestRateModel", _deployment.amortizedInterestRateModel);
 
         console.log("Writing json to file: %s\n", json);
         vm.writeJson(json, _getJsonFilePath());
@@ -125,6 +129,20 @@ contract Deployer is BaseScript {
             _deployment.depositTimelock = instance;
         } catch {
             console.log("Could not parse depositTimelock");
+        }
+
+        /* Deserialize simpleInterestRateModel */
+        try vm.parseJsonAddress(json, ".simpleInterestRateModel") returns (address instance) {
+            _deployment.simpleInterestRateModel = instance;
+        } catch {
+            console.log("Could not parse simpleInterestRateModel");
+        }
+
+        /* Deserialize amortizedInterestRateModel */
+        try vm.parseJsonAddress(json, ".amortizedInterestRateModel") returns (address instance) {
+            _deployment.amortizedInterestRateModel = instance;
+        } catch {
+            console.log("Could not parse amortizedInterestRateModel");
         }
     }
 }
