@@ -8,10 +8,12 @@ import {AmortizedInterestRateModel} from "src/rates/AmortizedInterestRateModel.s
 import {Deployer} from "./utils/Deployer.s.sol";
 
 contract DeployAmortizedInterestRateModel is Deployer {
-    function run() public broadcast returns (address) {
+    function run() public broadcast useDeployment returns (address) {
         // Deploy AmortizedInterestRateModel
         AmortizedInterestRateModel amortizedInterestRateModel = new AmortizedInterestRateModel();
         console.log("AmortizedInterestRateModel", address(amortizedInterestRateModel));
+
+        _deployment.amortizedInterestRateModel = address(amortizedInterestRateModel);
 
         return (address(amortizedInterestRateModel));
     }
