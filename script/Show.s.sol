@@ -13,8 +13,10 @@ contract Show is Deployer {
         /* Deserialize */
         _deserialize();
 
-        console.log("loanRouter:            %s", _deployment.loanRouter);
-        console.log("depositTimelock:       %s", _deployment.depositTimelock);
+        console.log("loanRouter:                    %s", _deployment.loanRouter);
+        console.log("depositTimelock:               %s", _deployment.depositTimelock);
+        console.log("simpleInterestRateModel:       %s", _deployment.simpleInterestRateModel);
+        console.log("amortizedInterestRateModel:    %s", _deployment.amortizedInterestRateModel);
 
         console.log("Printing deployments completed");
     }
