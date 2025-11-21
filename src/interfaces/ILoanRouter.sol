@@ -235,13 +235,10 @@ interface ILoanRouter {
     /**
      * @notice Emitted when transfer failed
      * @param token Token address
-     * @param recipient Recipient address
      * @param intendedRecipient Intended recipient address
      * @param amount Amount
      */
-    event TransferFailed(
-        address indexed token, address indexed recipient, address indexed intendedRecipient, uint256 amount
-    );
+    event TransferFailed(address indexed token, address indexed intendedRecipient, uint256 amount);
 
     /**
      * @notice Emitted when hook failed
@@ -268,6 +265,14 @@ interface ILoanRouter {
      * @param liquidationFeeRate Liquidation fee rate
      */
     event LiquidationFeeRateSet(uint256 indexed liquidationFeeRate);
+
+    /**
+     * @notice Emitted when ERC20 is withdrawn
+     * @param token Token address
+     * @param recipient Recipient address
+     * @param amount Amount
+     */
+    event ERC20Withdrawn(address indexed token, address indexed recipient, uint256 amount);
 
     /*------------------------------------------------------------------------*/
     /* Getters */
@@ -417,5 +422,17 @@ interface ILoanRouter {
      */
     function setLiquidationFeeRate(
         uint256 liquidationFeeRate
+    ) external;
+
+    /**
+     * @notice Withdraw ERC20 tokens (admin only)
+     * @param token Token address
+     * @param recipient Recipient address
+     * @param amount Amount
+     */
+    function withdrawERC20(
+        address token,
+        address recipient,
+        uint256 amount
     ) external;
 }
