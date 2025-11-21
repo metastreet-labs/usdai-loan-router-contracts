@@ -117,6 +117,7 @@ abstract contract BaseTest is Test {
     function setUp() public virtual {
         // Fork Arbitrum mainnet
         vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"));
+        vm.rollFork(401947600);
 
         // Create users
         users = Users({
@@ -173,7 +174,7 @@ abstract contract BaseTest is Test {
         vm.startPrank(users.deployer);
 
         // Deploy implementation
-        loanRouterImpl = new LoanRouter(ENGLISH_AUCTION_LIQUIDATOR, COLLATERAL_WRAPPER);
+        loanRouterImpl = new LoanRouter(address(depositTimelock), ENGLISH_AUCTION_LIQUIDATOR, COLLATERAL_WRAPPER);
 
         // Deploy proxy
         loanRouterProxy = new TransparentUpgradeableProxy(
@@ -373,7 +374,6 @@ abstract contract BaseTest is Test {
         return ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: borrower_,
-            depositTimelock: address(depositTimelock),
             currencyToken: USDC,
             collateralToken: COLLATERAL_WRAPPER,
             collateralTokenId: wrappedTokenId,

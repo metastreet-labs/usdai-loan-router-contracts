@@ -10,6 +10,7 @@ import {Deployer} from "./utils/Deployer.s.sol";
 
 contract DeployLoanRouter is Deployer {
     function run(
+        address depositTimelock,
         address collateralLiquidator,
         address collateralWrapper,
         address deployer,
@@ -17,7 +18,7 @@ contract DeployLoanRouter is Deployer {
         uint256 liquidationFeeRate
     ) public broadcast useDeployment returns (address) {
         // Deploy LoanRouter implementation
-        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper);
+        LoanRouter loanRouterImpl = new LoanRouter(depositTimelock, collateralLiquidator, collateralWrapper);
         console.log("LoanRouter implementation", address(loanRouterImpl));
 
         // Deploy LoanRouter proxy
