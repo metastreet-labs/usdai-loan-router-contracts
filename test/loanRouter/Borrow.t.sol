@@ -374,34 +374,6 @@ contract LoanRouterBorrowTest is BaseTest {
     /* Test: Borrow failures */
     /*------------------------------------------------------------------------*/
 
-    function test__Borrow_RevertWhen_InvalidDepositTimelock() public {
-        uint256 principal = 100_000 * 1e6; // 100k USDC
-        uint256 originationFee = 1_000 * 1e6; // 1k USDC
-        uint256 exitFee = 500 * 1e6; // 500 USDC
-
-        // Create loan terms with single tranche
-        ILoanRouter.LoanTerms memory loanTerms = createLoanTerms(users.borrower, principal, 1, originationFee, exitFee);
-
-        loanTerms.depositTimelock = address(0);
-
-        // Lender1 deposits to DepositTimelock (convert USDC amount to USDai decimals + 1.6bps for slippage)
-        vm.startPrank(users.lender1);
-        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
-        uint256 depositAmount = (principal * 10016 * 1e12) / 10000; // Convert 6 decimals to 18 decimals + 1.6bps
-        depositTimelock.deposit(address(loanRouter), loanTermsHash, USDAI, depositAmount, loanTerms.expiration);
-        vm.stopPrank();
-
-        // Borrower borrows funds
-        vm.startPrank(users.borrower);
-
-        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = createDepositTimelockInfos(1);
-
-        vm.expectRevert();
-        loanRouter.borrow(loanTerms, lenderDepositInfos);
-
-        vm.stopPrank();
-    }
-
     function test__Borrow_RevertWhen_AfterExpiration() public {
         uint256 principal = 100_000 * 1e6;
         uint256 originationFee = 1_000 * 1e6;

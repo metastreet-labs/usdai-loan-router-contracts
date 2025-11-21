@@ -16,7 +16,7 @@ contract UpgradeLoanRouter is Deployer {
         address collateralWrapper
     ) public broadcast useDeployment returns (address) {
         // Deploy LoanRouter implementation
-        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper);
+        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper, _deployment.depositTimelock);
         console.log("LoanRouter implementation", address(loanRouterImpl));
 
         /* Lookup proxy admin */

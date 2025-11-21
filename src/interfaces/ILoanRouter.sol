@@ -55,7 +55,6 @@ interface ILoanRouter {
     struct LoanTerms {
         uint64 expiration;
         address borrower;
-        address depositTimelock;
         address currencyToken;
         address collateralToken;
         uint256 collateralTokenId;
