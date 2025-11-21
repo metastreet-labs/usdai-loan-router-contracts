@@ -16,14 +16,14 @@ library LoanTermsLogic {
      * @notice Loan terms hash with nonce EIP-712 typehash
      */
     bytes32 public constant LOAN_TERMS_V1_WITH_NONCE_TYPEHASH = keccak256(
-        "LoanTermsWithNonce(LoanTerms loanTerms,uint256 nonce)FeeSpec(uint256 originationFee,uint256 exitFee)LoanTerms(uint64 expiration,address borrower,address depositTimelock,address currencyToken,address collateralToken,uint256 collateralTokenId,uint64 duration,uint64 repaymentInterval,address interestRateModel,uint256 gracePeriodRate,uint256 gracePeriodDuration,FeeSpec feeSpec,TrancheSpec[] trancheSpecs,bytes collateralWrapperContext,bytes options)TrancheSpec(address lender,uint256 amount,uint256 rate)"
+        "LoanTermsWithNonce(LoanTerms loanTerms,uint256 nonce)FeeSpec(uint256 originationFee,uint256 exitFee)LoanTerms(uint64 expiration,address borrower,address currencyToken,address collateralToken,uint256 collateralTokenId,uint64 duration,uint64 repaymentInterval,address interestRateModel,uint256 gracePeriodRate,uint256 gracePeriodDuration,FeeSpec feeSpec,TrancheSpec[] trancheSpecs,bytes collateralWrapperContext,bytes options)TrancheSpec(address lender,uint256 amount,uint256 rate)"
     );
 
     /**
      * @notice Loan terms EIP-712 typehash
      */
     bytes32 public constant LOAN_TERMS_V1_TYPEHASH = keccak256(
-        "LoanTerms(uint64 expiration,address borrower,address depositTimelock,address currencyToken,address collateralToken,uint256 collateralTokenId,uint64 duration,uint64 repaymentInterval,address interestRateModel,uint256 gracePeriodRate,uint256 gracePeriodDuration,FeeSpec feeSpec,TrancheSpec[] trancheSpecs,bytes collateralWrapperContext,bytes options)FeeSpec(uint256 originationFee,uint256 exitFee)TrancheSpec(address lender,uint256 amount,uint256 rate)"
+        "LoanTerms(uint64 expiration,address borrower,address currencyToken,address collateralToken,uint256 collateralTokenId,uint64 duration,uint64 repaymentInterval,address interestRateModel,uint256 gracePeriodRate,uint256 gracePeriodDuration,FeeSpec feeSpec,TrancheSpec[] trancheSpecs,bytes collateralWrapperContext,bytes options)FeeSpec(uint256 originationFee,uint256 exitFee)TrancheSpec(address lender,uint256 amount,uint256 rate)"
     );
 
     /**
@@ -83,7 +83,6 @@ library LoanTermsLogic {
                     LOAN_TERMS_V1_TYPEHASH,
                     loanTerms.expiration,
                     loanTerms.borrower,
-                    loanTerms.depositTimelock,
                     loanTerms.currencyToken,
                     loanTerms.collateralToken,
                     loanTerms.collateralTokenId,

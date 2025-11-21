@@ -305,7 +305,6 @@ contract SimpleInterestRateModelTest is BaseTest {
         ILoanRouter.LoanTerms memory loanTerms = ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: users.borrower,
-            depositTimelock: address(depositTimelock),
             currencyToken: USDC,
             collateralToken: COLLATERAL_WRAPPER,
             collateralTokenId: wrappedTokenId,
@@ -386,7 +385,6 @@ contract SimpleInterestRateModelTest is BaseTest {
         ILoanRouter.LoanTerms memory loanTerms = ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: users.borrower,
-            depositTimelock: address(depositTimelock),
             currencyToken: USDC,
             collateralToken: COLLATERAL_WRAPPER,
             collateralTokenId: wrappedTokenId,
@@ -457,7 +455,6 @@ contract SimpleInterestRateModelTest is BaseTest {
         ILoanRouter.LoanTerms memory loanTerms = ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: users.borrower,
-            depositTimelock: address(depositTimelock),
             currencyToken: USDC,
             collateralToken: COLLATERAL_WRAPPER,
             collateralTokenId: wrappedTokenId,

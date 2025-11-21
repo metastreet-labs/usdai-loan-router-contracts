@@ -12,12 +12,13 @@ contract DeployLoanRouter is Deployer {
     function run(
         address collateralLiquidator,
         address collateralWrapper,
+        address depositTimelock,
         address deployer,
         address admin,
         uint256 liquidationFeeRate
     ) public broadcast useDeployment returns (address) {
         // Deploy LoanRouter implementation
-        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper);
+        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper, depositTimelock);
         console.log("LoanRouter implementation", address(loanRouterImpl));
 
         // Deploy LoanRouter proxy

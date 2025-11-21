@@ -13,10 +13,11 @@ import {Deployer} from "./utils/Deployer.s.sol";
 contract UpgradeLoanRouter is Deployer {
     function run(
         address collateralLiquidator,
-        address collateralWrapper
+        address collateralWrapper,
+        address depositTimelock
     ) public broadcast useDeployment returns (address) {
         // Deploy LoanRouter implementation
-        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper);
+        LoanRouter loanRouterImpl = new LoanRouter(collateralLiquidator, collateralWrapper, depositTimelock);
         console.log("LoanRouter implementation", address(loanRouterImpl));
 
         /* Lookup proxy admin */

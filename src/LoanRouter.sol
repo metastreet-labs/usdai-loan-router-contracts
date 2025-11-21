@@ -151,6 +151,11 @@ contract LoanRouter is
      */
     address internal immutable _collateralWrapper;
 
+    /**
+     * @notice Deposit timelock
+     */
+    address internal immutable _depositTimelock;
+
     /*------------------------------------------------------------------------*/
     /* Constructor */
     /*------------------------------------------------------------------------*/
@@ -159,15 +164,18 @@ contract LoanRouter is
      * @notice Loan Router Constructor
      * @param collateralLiquidator_ Collateral liquidator
      * @param collateralWrapper_ Collateral wrapper
+     * @param depositTimelock_ Deposit timelock
      */
     constructor(
         address collateralLiquidator_,
-        address collateralWrapper_
+        address collateralWrapper_,
+        address depositTimelock_
     ) {
         _disableInitializers();
 
         _collateralLiquidator = collateralLiquidator_;
         _collateralWrapper = collateralWrapper_;
+        _depositTimelock = depositTimelock_;
     }
 
     /*------------------------------------------------------------------------*/
@@ -416,7 +424,7 @@ contract LoanRouter is
         for (uint8 i; i < loanTerms.trancheSpecs.length; i++) {
             if (lenderDepositInfos[i].depositType == DepositType.DepositTimelock) {
                 /* Withdraw borrow token from deposit timelock */
-                IDepositTimelock(loanTerms.depositTimelock)
+                IDepositTimelock(_depositTimelock)
                     .withdraw(
                         loanTermsHash_,
                         loanTerms.trancheSpecs[i].lender,
