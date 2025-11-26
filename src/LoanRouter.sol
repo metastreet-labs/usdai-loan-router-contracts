@@ -675,6 +675,13 @@ contract LoanRouter is
     /**
      * @inheritdoc ILoanRouter
      */
+    function depositTimelock() external view returns (address) {
+        return _depositTimelock;
+    }
+
+    /**
+     * @inheritdoc ILoanRouter
+     */
     function loanTermsHash(
         LoanTerms calldata loanTerms
     ) external view returns (bytes32) {

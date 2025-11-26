@@ -279,6 +279,12 @@ interface ILoanRouter {
     /*------------------------------------------------------------------------*/
 
     /**
+     * @notice Get deposit timelock
+     * @return Deposit timelock address
+     */
+    function depositTimelock() external view returns (address);
+
+    /**
      * @notice Compute loan terms hash from loan terms sturcture
      * @param loanTerms Loan terms
      * @return Loan terms hash
