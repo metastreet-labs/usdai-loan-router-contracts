@@ -705,4 +705,133 @@ contract LoanRouterRepayTest is BaseTest {
         assertEq(IERC20(USDC).balanceOf(users.lender2), lender2Before, "Blacklisted lender2 should not receive payment");
         assertEq(IERC20(USDC).balanceOf(users.lender3), lender3Before, "Blacklisted lender3 should not receive payment");
     }
+
+    /*------------------------------------------------------------------------*/
+    /* Test: Malicious interest rate model exploit attempt */
+    /*------------------------------------------------------------------------*/
+
+    function test__Repay_RevertWhen_MaliciousInterestRateModel_AttemptsToExtractFunds() public {
+        // Deploy malicious interest rate model
+        address attacker = makeAddr("attacker");
+        vm.deal(attacker, 100 ether);
+
+        vm.startPrank(attacker);
+        MaliciousInterestRateModel maliciousModel = new MaliciousInterestRateModel();
+        vm.stopPrank();
+
+        // Send some USDC to LoanRouter (simulating funds sitting in the contract that attacker wants to steal)
+        uint256 fundsInRouter = 50_000 * 1e6; // 50k USDC
+        deal(USDC, address(loanRouter), fundsInRouter);
+
+        // Transfer collateral to attacker
+        vm.prank(users.borrower);
+        IERC721(COLLATERAL_WRAPPER).transferFrom(users.borrower, attacker, wrappedTokenId);
+
+        // Fund attacker with USDC for repayment
+        deal(USDC, attacker, 200_000 * 1e6);
+
+        // Create loan terms with malicious interest rate model
+        uint256 principal = 100_000 * 1e6; // 100k USDC
+        uint256 originationFee = principal / 100; // 1%
+        uint256 exitFee = principal / 200; // 0.5%
+
+        // Create loan terms with attacker as borrower and malicious model
+        ILoanRouter.LoanTerms memory loanTerms = createLoanTerms(attacker, principal, 2, originationFee, exitFee);
+        loanTerms.interestRateModel = address(maliciousModel);
+
+        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
+
+        // Setup deposits for tranches
+        vm.startPrank(users.lender1);
+        uint256 depositAmount1 = (loanTerms.trancheSpecs[0].amount * 10016 * 1e12) / 10000;
+        depositTimelock.deposit(address(loanRouter), loanTermsHash, USDAI, depositAmount1, loanTerms.expiration);
+        vm.stopPrank();
+
+        vm.startPrank(users.lender2);
+        uint256 depositAmount2 = (loanTerms.trancheSpecs[1].amount * 10016 * 1e12) / 10000;
+        depositTimelock.deposit(address(loanRouter), loanTermsHash, USDAI, depositAmount2, loanTerms.expiration);
+        vm.stopPrank();
+
+        // Borrow as attacker
+        vm.startPrank(attacker);
+        // Approve collateral and USDC
+        IERC20(USDC).approve(address(loanRouter), type(uint256).max);
+        IERC721(COLLATERAL_WRAPPER).approve(address(loanRouter), wrappedTokenId);
+
+        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = createDepositTimelockInfos(2);
+        loanRouter.borrow(loanTerms, lenderDepositInfos);
+        vm.stopPrank();
+
+        // Get loan state
+        (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanTermsHash);
+
+        // Warp to repayment window
+        warpToNextRepaymentWindow(repaymentDeadline);
+
+        // Record router balance before attack
+        uint256 routerBalanceBefore = IERC20(USDC).balanceOf(address(loanRouter));
+
+        // Attempt to repay with malicious model - should revert with InvalidAmount
+        vm.startPrank(attacker);
+        uint256 requiredPayment = calculateRequiredRepayment(loanTerms);
+
+        // Expect revert due to totalRepayment > transferredRepayment check in _repayLenders()
+        vm.expectRevert(ILoanRouter.InvalidAmount.selector);
+        loanRouter.repay(loanTerms, requiredPayment);
+        vm.stopPrank();
+
+        // Verify router balance unchanged (attack failed)
+        uint256 routerBalanceAfter = IERC20(USDC).balanceOf(address(loanRouter));
+        assertEq(routerBalanceAfter, routerBalanceBefore, "Router balance should be unchanged after failed attack");
+    }
+}
+
+/*------------------------------------------------------------------------*/
+/* Malicious Interest Rate Model */
+/*------------------------------------------------------------------------*/
+
+import {IInterestRateModel} from "src/interfaces/IInterestRateModel.sol";
+
+contract MaliciousInterestRateModel is IInterestRateModel {
+    function INTEREST_RATE_MODEL_NAME() external pure returns (string memory) {
+        return "Malicious Interest Rate Model";
+    }
+
+    function INTEREST_RATE_MODEL_VERSION() external pure returns (string memory) {
+        return "1.0";
+    }
+
+    function repayment(
+        ILoanRouter.LoanTerms calldata terms,
+        uint256,
+        uint64,
+        uint64,
+        uint64
+    )
+        external
+        pure
+        returns (
+            uint256 principalPayment,
+            uint256 interestPayment,
+            uint256[] memory tranchePrincipals,
+            uint256[] memory trancheInterests,
+            uint64 servicedIntervals
+        )
+    {
+        tranchePrincipals = new uint256[](terms.trancheSpecs.length);
+        trancheInterests = new uint256[](terms.trancheSpecs.length);
+
+        uint256 scaleFactor = 10 ** (18 - 6);
+
+        principalPayment = 1000 * scaleFactor; // 1000 USDC scaled
+        interestPayment = 100 * scaleFactor; // 100 USDC scaled
+
+        // Inflate the individual tranche values to extract more
+        for (uint8 i = 0; i < terms.trancheSpecs.length; i++) {
+            tranchePrincipals[i] = 25_000 * scaleFactor; // 25k USDC per tranche
+            trancheInterests[i] = 5_000 * scaleFactor; // 5k USDC per tranche
+        }
+
+        servicedIntervals = 1;
+    }
 }
