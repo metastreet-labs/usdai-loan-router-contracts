@@ -25,7 +25,8 @@ contract DeployProductionEnvironment is Deployer {
 
     address internal constant DEPOSIT_TIMELOCK_ADDRESS = address(0x0D710CC05f34d2eaD9fbA3c78d53d76a0623c9F8);
     address internal constant LOAN_ROUTER_ADDRESS = address(0x0C2ED170ecCc48Eb9819b40808f444f99991C079);
-    bytes32 internal constant DEPOSIT_TIMELOCK_SALT = 0x783b08aa21de056717173f72e04be0e91328a07b002c641951ebd07101f521d4;
+    bytes32 internal constant DEPOSIT_TIMELOCK_SALT =
+        0x783b08aa21de056717173f72e04be0e91328a07b002c641951ebd07101f521d4;
     bytes32 internal constant LOAN_ROUTER_SALT = 0x783b08aa21de056717173f72e04be0e91328a07b00abe5cc8b207a8103a188d1;
 
     function run(
