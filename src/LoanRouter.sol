@@ -479,6 +479,7 @@ contract LoanRouter is
      * @param trancheInterests Tranche interests
      * @param tranchePrincipals Tranche principals
      * @param totalPrepayment Total prepayment
+     * @return Total repayment transferred
      */
     function _repayLenders(
         LoanTerms calldata loanTerms,
@@ -487,9 +488,14 @@ contract LoanRouter is
         uint256[] memory trancheInterests,
         uint256[] memory tranchePrincipals,
         uint256 totalPrepayment
-    ) internal {
+    ) internal returns (uint256) {
+        /* Unscale loan balance */
+        loanBalance = _unscale(loanBalance);
+
+        /* Calculate original principal to prorate prepayment */
         uint256 originalPrincipal = totalPrepayment != 0 ? _calculatePrincipal(loanTerms) : 0;
 
+        uint256 totalRepayment;
         uint256 totalPrepaymentRemaining = totalPrepayment;
         for (uint8 i; i < loanTerms.trancheSpecs.length; i++) {
             /* Calculate prepayment for this tranche */
@@ -505,6 +511,9 @@ contract LoanRouter is
             uint256 interest = _unscale(trancheInterests[i]);
             uint256 prepayment = _unscale(tranchePrepayment);
             uint256 repayment = principal + interest + prepayment;
+
+            /* Accumulate total repayment */
+            totalRepayment += repayment;
 
             /* Get tranche owner */
             address owner = _ownerOf(_tokenId(loanTermsHash_, i));
@@ -532,6 +541,8 @@ contract LoanRouter is
             /* Emit lender repaid event */
             emit LenderRepaid(loanTermsHash_, owner, i, principal, interest, prepayment);
         }
+
+        return totalRepayment;
     }
 
     /**
@@ -862,14 +873,12 @@ contract LoanRouter is
                     + (isFullyRepaid ? _scale(loanTerms.feeSpec.exitFee) : 0)
         ) revert InvalidAmount();
 
+        /* Calculate total repayment (less exit fee) */
+        uint256 repayment = _unscale(principalPayment + interestPayment + prepayment, true);
+
         /* Transfer total repayment amount (and exit fee if any) to this contract */
         IERC20(loanTerms.currencyToken)
-            .safeTransferFrom(
-                msg.sender,
-                address(this),
-                _unscale(principalPayment + interestPayment + prepayment, true)
-                    + (isFullyRepaid ? loanTerms.feeSpec.exitFee : 0)
-            );
+            .safeTransferFrom(msg.sender, address(this), repayment + (isFullyRepaid ? loanTerms.feeSpec.exitFee : 0));
 
         /* If loan is fully repaid, transfer exit fee to fee recipient and return collateral */
         if (isFullyRepaid) {
@@ -881,9 +890,13 @@ contract LoanRouter is
         }
 
         /* Transfer lender repayments and call onLoanRepayment hooks */
-        _repayLenders(
-            loanTerms, loanTermsHash_, _unscale(loanState_.balance), trancheInterests, tranchePrincipals, prepayment
-        );
+        if (
+            _repayLenders(
+                    loanTerms, loanTermsHash_, loanState_.balance, trancheInterests, tranchePrincipals, prepayment
+                ) > repayment
+        ) {
+            revert InvalidAmount();
+        }
 
         /* Emit loan repaid event */
         emit LoanRepaid(
