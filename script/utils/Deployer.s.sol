@@ -26,6 +26,7 @@ contract Deployer is BaseScript {
         address depositTimelock;
         address simpleInterestRateModel;
         address amortizedInterestRateModel;
+        address bundleCollateralWrapper;
     }
 
     /*--------------------------------------------------------------------------*/
@@ -104,6 +105,7 @@ contract Deployer is BaseScript {
         json = stdJson.serialize("", "depositTimelock", _deployment.depositTimelock);
         json = stdJson.serialize("", "simpleInterestRateModel", _deployment.simpleInterestRateModel);
         json = stdJson.serialize("", "amortizedInterestRateModel", _deployment.amortizedInterestRateModel);
+        json = stdJson.serialize("", "bundleCollateralWrapper", _deployment.bundleCollateralWrapper);
 
         console.log("Writing json to file: %s\n", json);
         vm.writeJson(json, _getJsonFilePath());
@@ -143,6 +145,13 @@ contract Deployer is BaseScript {
             _deployment.amortizedInterestRateModel = instance;
         } catch {
             console.log("Could not parse amortizedInterestRateModel");
+        }
+
+        /* Deserialize bundleCollateralWrapper */
+        try vm.parseJsonAddress(json, ".bundleCollateralWrapper") returns (address instance) {
+            _deployment.bundleCollateralWrapper = instance;
+        } catch {
+            console.log("Could not parse bundleCollateralWrapper");
         }
     }
 }
