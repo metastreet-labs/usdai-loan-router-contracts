@@ -22,7 +22,7 @@ import {TestERC721} from "./mocks/TestERC721.sol";
 
 /**
  * @title Base test setup for LoanRouter
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 abstract contract BaseTest is Test {
     /*------------------------------------------------------------------------*/

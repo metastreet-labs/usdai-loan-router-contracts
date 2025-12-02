@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 /**
  * @title Deposit Timelock Interface
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 interface ILoanRouter {
     /*------------------------------------------------------------------------*/

@@ -1,11 +1,11 @@
-# Loan Router Contracts
+# USDai Loan Router Contracts
 
 ## Usage
 
 Clone:
 
 ```shell
-$ git clone --recursive https://github.com/metastreet-labs/metastreet-usdai-loan-router.git
+$ git clone --recursive https://github.com/metastreet-labs/usdai-loan-router-contracts.git
 ```
 
 Build:
@@ -29,4 +29,4 @@ $ git submodule update --init --recursive
 
 ## License
 
-MetaStreet Loan Router Contracts are primarily BUSL-1.1 [licensed](LICENSE). Interfaces are MIT licensed.
+USDai Loan Router Contracts are primarily BUSL-1.1 [licensed](LICENSE). Interfaces are MIT licensed.

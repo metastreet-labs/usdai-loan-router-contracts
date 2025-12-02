@@ -5,7 +5,7 @@ import "./interfaces/ILoanRouter.sol";
 
 /**
  * @title Loan Terms Logic
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 library LoanTermsLogic {
     /*------------------------------------------------------------------------*/
