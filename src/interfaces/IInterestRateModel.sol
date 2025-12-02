@@ -5,7 +5,7 @@ import "./ILoanRouter.sol";
 
 /**
  * @title Interest Rate Model Interface
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 interface IInterestRateModel {
     /*------------------------------------------------------------------------*/

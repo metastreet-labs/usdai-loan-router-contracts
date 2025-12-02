@@ -1,7 +1,7 @@
-# MetaStreet Loan Router Design
+# USDai Loan Router Design
 
-MetaStreet Loan Router is a permissionless, peer-to-peer lending protocol for
-NFT collateral with tranching, periodic repayments, and flexible interest rate
+USDai Loan Router is a permissionless, peer-to-peer lending protocol for NFT
+collateral with tranching, periodic repayments, and flexible interest rate
 models. Loan terms are determined offchain, signed on to by lenders, and then
 executed onchain by the borrower.
 
@@ -39,8 +39,7 @@ struct LoanTerms {
 
 Loan terms specify all relevant details for a loan, like collateral, lending
 tranches, duration, interest rate model, fees, etc. Loan terms are passed as
-calldata to the MetaStreet Loan Router contract to optimize for storage and
-gas.
+calldata to the USDai Loan Router contract to optimize for storage and gas.
 
 ## Borrow Flow
 
@@ -135,9 +134,9 @@ sequenceDiagram
 ```
 
 On completed collateral liquidation, the collateral liquidator calls the
-`onCollateralLiquidator()` callback on the MetaStreet Loan Router with the
-total liquidation proceeds. Liquidation proceeds are remitted to lenders in
-order of tranche seniority, with any accrued interest since the last repayment.
+`onCollateralLiquidator()` callback on the USDai Loan Router with the total
+liquidation proceeds. Liquidation proceeds are remitted to lenders in order of
+tranche seniority, with any accrued interest since the last repayment.
 
 **`onCollateralLiquidated(bytes calldata context, uint256 proceeds)`**
 
@@ -169,10 +168,9 @@ an external oracle.
 
 The `DepositTimelock` is an optional external component for escrowing lender
 funds in advance of large loans. It provides a permissionless API for lenders
-to deposit funds with an expiration time. Funds can be withdrawn by the
-MetaStreet Loan Router to fund a loan when it is ready to be executed by the
-borrower. In the case of expiration, lenders can retrieve their deposited
-funds.
+to deposit funds with an expiration time. Funds can be withdrawn by the USDai
+Loan Router to fund a loan when it is ready to be executed by the borrower. In
+the case of expiration, lenders can retrieve their deposited funds.
 
 The `DepositTimelock` also supports swapping a yield-bearing deposit currency
 token for a different currency token on withdraw, to allow lending capital
@@ -180,7 +178,7 @@ to continue to earn yield while it is in escrow.
 
 Lenders call `deposit()` to deposit funds with an expiration. The target and
 context ensure that the funds can only be withdrawn by a specific address, e.g.
-the MetaStreet Loan Router.
+the USDai Loan Router.
 
 **`deposit(address target, bytes32 context, address token, uint256 amount, uint64 expiration)`**
 
@@ -203,9 +201,9 @@ sequenceDiagram
     Deposit Timelock->>+Lender: Return Expired Funds (ERC20)
 ```
 
-On loan execution, the MetaStreet Loan Router calls `withdraw()` for each
-lender to collect the funds for the loan principal, potentially triggering a
-swap from the deposit currency token to loan currency token.
+On loan execution, the USDai Loan Router calls `withdraw()` for each lender to
+collect the funds for the loan principal, potentially triggering a swap from
+the deposit currency token to loan currency token.
 
 **`withdraw(bytes32 context, address depositor, address withdrawToken, uint256 amount, bytes calldata swapData)`**
 

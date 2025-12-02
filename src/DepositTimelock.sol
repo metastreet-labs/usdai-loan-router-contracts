@@ -14,7 +14,7 @@ import "./interfaces/ISwapAdapter.sol";
 
 /**
  * @title Deposit Timelock
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract DepositTimelock is
     IDepositTimelock,
