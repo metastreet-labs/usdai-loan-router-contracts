@@ -12,6 +12,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 import {LoanRouter} from "src/LoanRouter.sol";
 import {DepositTimelock} from "src/DepositTimelock.sol";
+import {BundleCollateralWrapper} from "src/collateralWrappers/BundleCollateralWrapper.sol";
 import {AmortizedInterestRateModel} from "src/rates/AmortizedInterestRateModel.sol";
 import {USDaiSwapAdapter} from "src/swapAdapters/USDaiSwapAdapter.sol";
 import {UniswapV3SwapAdapter} from "src/swapAdapters/UniswapV3SwapAdapter.sol";
@@ -34,7 +35,6 @@ abstract contract BaseTest is Test {
     address internal constant USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
     address internal constant USDAI = 0x0A1a1A107E45b7Ced86833863f482BC5f4ed82EF;
     address internal constant STAKED_USDAI = 0x0B2b2B2076d95dda7817e785989fE353fe955ef9;
-    address internal constant COLLATERAL_WRAPPER = 0xC2356bf42c8910fD6c28Ee6C843bc0E476ee5D26;
     address internal constant ENGLISH_AUCTION_LIQUIDATOR = 0xceb5856C525bbb654EEA75A8852A0F51073C4a58;
     address internal constant UNISWAP_V3_ROUTER = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
 
@@ -88,6 +88,8 @@ abstract contract BaseTest is Test {
     /* Contract instances */
     /*------------------------------------------------------------------------*/
 
+    BundleCollateralWrapper internal bundleCollateralWrapper;
+
     LoanRouter internal loanRouterImpl;
     LoanRouter internal loanRouter;
     TransparentUpgradeableProxy internal loanRouterProxy;
@@ -134,6 +136,9 @@ abstract contract BaseTest is Test {
         // Deploy test NFT
         deployTestNFT();
 
+        // Deploy bundle collateral wrapper
+        deployBundleCollateralWrapper();
+
         // Deploy contracts
         deployDepositTimelock();
         deployLoanRouter();
@@ -174,7 +179,8 @@ abstract contract BaseTest is Test {
         vm.startPrank(users.deployer);
 
         // Deploy implementation
-        loanRouterImpl = new LoanRouter(address(depositTimelock), ENGLISH_AUCTION_LIQUIDATOR, COLLATERAL_WRAPPER);
+        loanRouterImpl =
+            new LoanRouter(address(depositTimelock), ENGLISH_AUCTION_LIQUIDATOR, address(bundleCollateralWrapper));
 
         // Deploy proxy
         loanRouterProxy = new TransparentUpgradeableProxy(
@@ -215,6 +221,12 @@ abstract contract BaseTest is Test {
         vm.stopPrank();
     }
 
+    function deployBundleCollateralWrapper() internal {
+        vm.startPrank(users.deployer);
+        bundleCollateralWrapper = new BundleCollateralWrapper();
+        vm.stopPrank();
+    }
+
     /*------------------------------------------------------------------------*/
     /* Setup functions */
     /*------------------------------------------------------------------------*/
@@ -237,15 +249,14 @@ abstract contract BaseTest is Test {
         vm.startPrank(users.borrower);
 
         // Approve collateral wrapper to transfer NFTs
-        testNFT.setApprovalForAll(COLLATERAL_WRAPPER, true);
+        testNFT.setApprovalForAll(address(bundleCollateralWrapper), true);
 
         // Record logs to capture BundleMinted event
         vm.recordLogs();
 
         // Mint bundle (wrap NFTs)
-        (bool success, bytes memory data) = COLLATERAL_WRAPPER.call(
-            abi.encodeWithSignature("mint(address,uint256[])", address(testNFT), tokenIdsToWrap)
-        );
+        (bool success, bytes memory data) = address(bundleCollateralWrapper)
+            .call(abi.encodeWithSignature("mint(address,uint256[])", address(testNFT), tokenIdsToWrap));
         require(success, "Failed to mint bundle");
 
         // Decode wrapped token ID
@@ -291,7 +302,7 @@ abstract contract BaseTest is Test {
     function setApprovals() internal {
         // Borrower approvals
         vm.startPrank(users.borrower);
-        IERC721(COLLATERAL_WRAPPER).setApprovalForAll(address(loanRouter), true);
+        IERC721(bundleCollateralWrapper).setApprovalForAll(address(loanRouter), true);
         IERC20(USDC).approve(address(loanRouter), type(uint256).max);
         vm.stopPrank();
 
@@ -375,7 +386,7 @@ abstract contract BaseTest is Test {
             expiration: uint64(block.timestamp + 7 days),
             borrower: borrower_,
             currencyToken: USDC,
-            collateralToken: COLLATERAL_WRAPPER,
+            collateralToken: address(bundleCollateralWrapper),
             collateralTokenId: wrappedTokenId,
             duration: LOAN_DURATION,
             repaymentInterval: REPAYMENT_INTERVAL,

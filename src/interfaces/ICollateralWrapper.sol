@@ -25,6 +25,15 @@ interface ICollateralWrapper {
     ) external view returns (bool);
 
     /**
+     * @notice Compute token ID from context
+     * @param context Implementation-specific context
+     * @return Collateral wrapper token ID
+     */
+    function tokenId(
+        bytes calldata context
+    ) external view returns (uint256);
+
+    /**
      * @notice Enumerate wrapped collateral
      * @param tokenId Collateral wrapper token ID
      * @param context Implementation-specific context

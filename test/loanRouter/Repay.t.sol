@@ -158,7 +158,7 @@ contract LoanRouterRepayTest is BaseTest {
         uint256 prepayment = balance * 2; // Overpay to ensure full repayment
 
         // Record borrower's collateral ownership before
-        address collateralOwnerBefore = IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId);
+        address collateralOwnerBefore = IERC721(address(bundleCollateralWrapper)).ownerOf(wrappedTokenId);
         assertEq(collateralOwnerBefore, address(loanRouter), "Collateral should be with LoanRouter");
 
         // Repay with full prepayment
@@ -174,7 +174,7 @@ contract LoanRouterRepayTest is BaseTest {
 
         // Verify collateral returned to borrower
         assertEq(
-            IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId),
+            IERC721(address(bundleCollateralWrapper)).ownerOf(wrappedTokenId),
             users.borrower,
             "Collateral should be returned to borrower"
         );
@@ -362,7 +362,11 @@ contract LoanRouterRepayTest is BaseTest {
         assertEq(finalBalance, 0, "Balance should be zero");
 
         // Verify collateral returned
-        assertEq(IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId), users.borrower, "Collateral should be returned");
+        assertEq(
+            IERC721(address(bundleCollateralWrapper)).ownerOf(wrappedTokenId),
+            users.borrower,
+            "Collateral should be returned"
+        );
     }
 
     /*------------------------------------------------------------------------*/
@@ -635,7 +639,11 @@ contract LoanRouterRepayTest is BaseTest {
         assertEq(IERC20(USDC).balanceOf(users.lender1), lender1Before, "Blacklisted lender should not receive payment");
 
         // Verify collateral returned to borrower despite blacklisted lender
-        assertEq(IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId), users.borrower, "Collateral should be returned");
+        assertEq(
+            IERC721(address(bundleCollateralWrapper)).ownerOf(wrappedTokenId),
+            users.borrower,
+            "Collateral should be returned"
+        );
     }
 
     function test__Repay_BlacklistedLender_LatePayment_NoPayment() public {
@@ -725,7 +733,7 @@ contract LoanRouterRepayTest is BaseTest {
 
         // Transfer collateral to attacker
         vm.prank(users.borrower);
-        IERC721(COLLATERAL_WRAPPER).transferFrom(users.borrower, attacker, wrappedTokenId);
+        IERC721(address(bundleCollateralWrapper)).transferFrom(users.borrower, attacker, wrappedTokenId);
 
         // Fund attacker with USDC for repayment
         deal(USDC, attacker, 200_000 * 1e6);
@@ -756,7 +764,7 @@ contract LoanRouterRepayTest is BaseTest {
         vm.startPrank(attacker);
         // Approve collateral and USDC
         IERC20(USDC).approve(address(loanRouter), type(uint256).max);
-        IERC721(COLLATERAL_WRAPPER).approve(address(loanRouter), wrappedTokenId);
+        IERC721(address(bundleCollateralWrapper)).approve(address(loanRouter), wrappedTokenId);
 
         ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = createDepositTimelockInfos(2);
         loanRouter.borrow(loanTerms, lenderDepositInfos);
