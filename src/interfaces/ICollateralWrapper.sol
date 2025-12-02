@@ -16,6 +16,15 @@ interface ICollateralWrapper {
     function name() external view returns (string memory);
 
     /**
+     * @notice Check if token ID exists
+     * @param tokenId_ Token ID
+     * @return True if token ID exists, otherwise false
+     */
+    function exists(
+        uint256 tokenId_
+    ) external view returns (bool);
+
+    /**
      * @notice Compute token ID from context
      * @param context Implementation-specific context
      * @return Collateral wrapper token ID
