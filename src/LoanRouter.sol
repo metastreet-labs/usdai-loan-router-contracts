@@ -24,6 +24,7 @@ import "./interfaces/IDepositTimelock.sol";
 import "./interfaces/ILoanRouterHooks.sol";
 import "./interfaces/external/ICollateralLiquidator.sol";
 import "./interfaces/external/ICollateralLiquidationReceiver.sol";
+import "./interfaces/ICollateralWrapper.sol";
 
 import "./libs/ExcessivelySafeCall.sol";
 
@@ -795,7 +796,7 @@ contract LoanRouter is
         /* Validate collateral wrapper context */
         if (
             loanTerms.collateralToken == _collateralWrapper
-                && uint256(keccak256(abi.encodePacked(block.chainid, loanTerms.collateralWrapperContext)))
+                && ICollateralWrapper(_collateralWrapper).tokenId(loanTerms.collateralWrapperContext)
                     != loanTerms.collateralTokenId
         ) revert InvalidLoanTerms("Collateral Wrapper Context");
 

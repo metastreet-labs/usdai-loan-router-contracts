@@ -68,7 +68,7 @@ contract LoanRouterBorrowTest is BaseTest {
 
         // Verify collateral is locked in LoanRouter
         assertEq(
-            IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId),
+            IERC721(address(bundleCollateralWrapper)).ownerOf(wrappedTokenId),
             address(loanRouter),
             "Collateral should be locked in LoanRouter"
         );
@@ -172,7 +172,7 @@ contract LoanRouterBorrowTest is BaseTest {
 
         // Verify collateral is locked in LoanRouter
         assertEq(
-            IERC721(COLLATERAL_WRAPPER).ownerOf(wrappedTokenId),
+            IERC721(address(bundleCollateralWrapper)).ownerOf(wrappedTokenId),
             address(loanRouter),
             "Collateral should be locked in LoanRouter"
         );
