@@ -942,14 +942,11 @@ contract LoanRouter is
         }
 
         /* Transfer lender repayments and call onLoanRepayment hooks */
-        if (_repayLenders(
-            loanTerms,
-            loanTermsHash_,
-            loanState_.balance,
-            trancheInterests,
-            tranchePrincipals,
-            prepayment
-        ) > repayment) {
+        if (
+            _repayLenders(
+                    loanTerms, loanTermsHash_, loanState_.balance, trancheInterests, tranchePrincipals, prepayment
+                ) > repayment
+        ) {
             revert InvalidAmount();
         }
 

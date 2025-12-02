@@ -17,11 +17,8 @@ contract DeployBundleCollateralWrapper is Deployer {
         console.log("BundleCollateralWrapper implementation", address(bundleCollateralWrapperImpl));
 
         // Deploy BundleCollateralWrapper proxy
-        TransparentUpgradeableProxy bundleCollateralWrapper = new TransparentUpgradeableProxy(
-            address(bundleCollateralWrapperImpl),
-            deployer,
-            "0x"
-        );
+        TransparentUpgradeableProxy bundleCollateralWrapper =
+            new TransparentUpgradeableProxy(address(bundleCollateralWrapperImpl), deployer, "0x");
         console.log("BundleCollateralWrapper proxy", address(bundleCollateralWrapper));
 
         _deployment.bundleCollateralWrapper = address(bundleCollateralWrapper);

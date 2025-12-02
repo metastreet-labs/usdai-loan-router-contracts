@@ -12,18 +12,18 @@ import "../interfaces/ICollateralWrapper.sol";
  * @author USD.AI Foundation
  */
 contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardTransient {
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* Constants */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @notice Implementation version
      */
     string public constant IMPLEMENTATION_VERSION = "3.0";
 
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* Errors */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @notice Invalid caller
@@ -40,9 +40,9 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
      */
     error InvalidSize();
 
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* Events */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @notice Emitted when bundle is minted
@@ -59,18 +59,18 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
      */
     event BundleUnwrapped(uint256 indexed tokenId, address indexed account);
 
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* Constructor */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @notice BundleCollateralWrapper constructor
      */
     constructor() ERC721("Bundle Collateral Wrapper", "BCW") {}
 
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* Implementation */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @inheritdoc ICollateralWrapper
@@ -91,7 +91,9 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
      * @param tokenId Token ID
      * @return True if token ID exists, otherwise false
      */
-    function exists(uint256 tokenId) external view returns (bool) {
+    function exists(
+        uint256 tokenId
+    ) external view returns (bool) {
         return _ownerOf(tokenId) != address(0);
     }
 
@@ -154,7 +156,10 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
     /**
      * @inheritdoc ICollateralWrapper
      */
-    function count(uint256 tokenId, bytes calldata context) external view returns (uint256) {
+    function count(
+        uint256 tokenId,
+        bytes calldata context
+    ) external view returns (uint256) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
         /* Compute number of tokens in context */
@@ -174,9 +179,9 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
         return (token, abi.encodeWithSelector(IERC721.transferFrom.selector, from, to, tokenId));
     }
 
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* Internal Helpers */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @dev Maximum bundle size
@@ -190,14 +195,16 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
      * @param encodedBundle Encoded bundle
      * @return bundleTokenId Hash
      */
-    function _hash(bytes memory encodedBundle) internal view returns (bytes32) {
+    function _hash(
+        bytes memory encodedBundle
+    ) internal view returns (bytes32) {
         /* Take hash of chain ID (32 bytes) concatenated with encoded bundle */
         return keccak256(abi.encodePacked(block.chainid, encodedBundle));
     }
 
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
     /* User API */
-    /**************************************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @notice Deposit NFT collateral into contract and mint a BundleCollateralWrapper token
@@ -209,7 +216,10 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
      * @param token Collateral token address
      * @param tokenIds List of token IDs
      */
-    function mint(address token, uint256[] calldata tokenIds) external nonReentrant returns (uint256) {
+    function mint(
+        address token,
+        uint256[] calldata tokenIds
+    ) external nonReentrant returns (uint256) {
         /* Validate token IDs count */
         if (tokenIds.length == 0 || tokenIds.length > MAX_BUNDLE_SIZE()) revert InvalidSize();
 
@@ -238,7 +248,10 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
      *
      * @inheritdoc ICollateralWrapper
      */
-    function unwrap(uint256 tokenId, bytes calldata context) external nonReentrant {
+    function unwrap(
+        uint256 tokenId,
+        bytes calldata context
+    ) external nonReentrant {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
         if (msg.sender != ownerOf(tokenId)) revert InvalidCaller();
 
@@ -260,14 +273,16 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
         emit BundleUnwrapped(tokenId, msg.sender);
     }
 
-    /******************************************************/
+    /*------------------------------------------------------------------------*/
     /* ERC165 interface */
-    /******************************************************/
+    /*------------------------------------------------------------------------*/
 
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override returns (bool) {
         return interfaceId == type(ICollateralWrapper).interfaceId || super.supportsInterface(interfaceId);
     }
 }
