@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title USDai Interface
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 interface IUSDai is IERC20 {
     /*------------------------------------------------------------------------*/

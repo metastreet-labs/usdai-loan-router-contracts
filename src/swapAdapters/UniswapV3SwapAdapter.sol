@@ -10,7 +10,7 @@ import {ISwapAdapter} from "../interfaces/ISwapAdapter.sol";
 
 /**
  * @title Uniswap V3 Swap Adapter
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract UniswapV3SwapAdapter is ISwapAdapter {
     using SafeERC20 for IERC20;

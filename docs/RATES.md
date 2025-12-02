@@ -1,7 +1,7 @@
-# MetaStreet Loan Router Rates and Fees
+# USDai Loan Router Rates and Fees
 
-This document describes the interest rate models and supported fees in
-MetaStreet Loan Router.
+This document describes the interest rate models and supported fees in USDai
+Loan Router.
 
 ## Parameters and State
 
@@ -254,8 +254,8 @@ Excess payments are distributed to tranches proportionally.
 
 ## Fees
 
-MetaStreet Loan Router supports three optional fees. The fee recipient for all
-fees is configured at the contract-level with the `setFeeRecipient()` API.
+USDai Loan Router supports three optional fees. The fee recipient for all fees
+is configured at the contract-level with the `setFeeRecipient()` API.
 
 ### Origination Fee
 

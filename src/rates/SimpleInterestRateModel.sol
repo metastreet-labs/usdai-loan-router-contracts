@@ -9,7 +9,7 @@ import "../interfaces/ILoanRouter.sol";
 
 /**
  * @title Simple Interest Rate Model
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract SimpleInterestRateModel is IInterestRateModel {
     using SafeCast for uint256;

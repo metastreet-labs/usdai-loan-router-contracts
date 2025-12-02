@@ -9,7 +9,7 @@ import "../interfaces/ILoanRouter.sol";
 
 /**
  * @title Amortized Interest Rate Model
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract AmortizedInterestRateModel is IInterestRateModel {
     using SafeCast for uint256;

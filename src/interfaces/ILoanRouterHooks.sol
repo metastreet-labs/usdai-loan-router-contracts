@@ -5,7 +5,7 @@ import {ILoanRouter} from "./ILoanRouter.sol";
 
 /**
  * @title Loan Router Callback Hooks
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 interface ILoanRouterHooks {
     /*------------------------------------------------------------------------*/

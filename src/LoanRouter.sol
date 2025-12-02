@@ -31,7 +31,7 @@ import "./LoanTermsLogic.sol";
 
 /**
  * @title Loan Router
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract LoanRouter is
     ILoanRouter,
