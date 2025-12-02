@@ -52,7 +52,7 @@ interface ICollateralWrapper {
     ) external view returns (uint256 tokenCount);
 
     /*
-     * Transfer collateral calldata
+     * @notice Get transfer collateral calldata
      * @param token Collateral token
      * @param from From address
      * @param to To address
@@ -70,7 +70,7 @@ interface ICollateralWrapper {
     ) external returns (address target, bytes memory data);
 
     /*
-     * Unwrap collateral
+     * @notice Unwrap collateral
      * @param tokenId Collateral wrapper token ID
      * @param context Implementation-specific context
      */
