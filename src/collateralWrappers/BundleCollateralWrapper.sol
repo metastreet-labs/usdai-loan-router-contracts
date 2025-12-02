@@ -87,9 +87,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuardT
     }
 
     /**
-     * @notice Check if token ID exists
-     * @param tokenId Token ID
-     * @return True if token ID exists, otherwise false
+     * @inheritdoc ICollateralWrapper
      */
     function exists(
         uint256 tokenId
