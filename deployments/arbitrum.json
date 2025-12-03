@@ -1,1 +1,7 @@
-{}
+{
+  "amortizedInterestRateModel": "0xe01520FD4F249efa4d905F60b6b54E2ade6fA18D",
+  "bundleCollateralWrapper": "0x80E3146FB2328fE1b79f92F5a3a6bF35515AEe37",
+  "depositTimelock": "0x0D710CC05f34d2eaD9fbA3c78d53d76a0623c9F8",
+  "loanRouter": "0x0C2ED170ecCc48Eb9819b40808f444f99991C079",
+  "simpleInterestRateModel": "0x92E1A11D0689AdB40F0abcc0aEEF7B36fF48711a"
+}
