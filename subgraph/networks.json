@@ -5,8 +5,8 @@
       "startBlock": 406799745
     },
     "LoanRouter": {
-      "address": "0x0C2ED170ecCc48Eb9819b40808f444f99991C079",
-      "startBlock": 406799745
+      "address": "0x0C2ED170F2bB1DF1a44292Ad621B577b3C9597D1",
+      "startBlock": 407498782
     }
   },
   "sepolia": {
