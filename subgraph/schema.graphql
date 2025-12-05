@@ -1,0 +1,68 @@
+type Deposit @entity(immutable: false) {
+  id: Bytes! # concat(depositor, context)
+  depositor: Bytes! # address
+  target: Bytes! # address
+  context: Bytes! # bytes32
+  token: ERC20Token!
+  amount: BigInt! # uint256
+  expiration: BigInt! # uint64
+}
+
+type ERC20Token @entity(immutable: true) {
+  id: Bytes! # address
+  name: String! # string
+  symbol: String! # string
+  decimals: Int! # uint8
+}
+
+enum LoanRouterEventType {
+  LoanOriginated
+  LoanRepaid
+  LoanLiquidated
+  LoanCollateralLiquidated
+}
+
+type LoanRouterEvent @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  txHash: Bytes! # bytes32
+  timestamp: BigInt! # uint256
+  loanTermsHash: Bytes! # bytes32
+  type: LoanRouterEventType!
+  loanOriginated: LoanOriginated
+  loanRepaid: LoanRepaid
+  loanLiquidated: LoanLiquidated
+  loanCollateralLiquidated: LoanCollateralLiquidated
+}
+
+type LoanOriginated @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  loanTermsHash: Bytes! # bytes32
+  borrower: Bytes! # address
+  currencyToken: ERC20Token! # address
+  principal: BigInt! # uint256
+  originationFee: BigInt! # uint256
+}
+
+type LoanRepaid @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  loanTermsHash: Bytes! # bytes32
+  borrower: Bytes! # address
+  principal: BigInt! # uint256
+  interest: BigInt! # uint256
+  prepayment: BigInt! # uint256
+  exitFee: BigInt! # uint256
+  isRepaid: Boolean!
+}
+
+type LoanLiquidated @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  loanTermsHash: Bytes! # bytes32
+}
+
+type LoanCollateralLiquidated @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  loanTermsHash: Bytes! # bytes32
+  proceeds: BigInt! # uint256
+  liquidationFee: BigInt! # uint256
+  surplus: BigInt! # uint256
+}

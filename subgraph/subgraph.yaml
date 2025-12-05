@@ -1,0 +1,70 @@
+specVersion: 1.2.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: DepositTimelock
+    network: arbitrum-one
+    source:
+      abi: DepositTimelock
+      address: "0x0D710CC05f34d2eaD9fbA3c78d53d76a0623c9F8"
+      startBlock: 406799745
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Deposit
+        - ERC20Token
+      abis:
+        - name: DepositTimelock
+          file: ../out/DepositTimelock.sol/DepositTimelock.json
+        - name: IERC20Metadata
+          file: ../out/IERC20Metadata.sol/IERC20Metadata.json
+      eventHandlers:
+        - event: Deposited(indexed address,indexed address,indexed
+            bytes32,address,uint256,uint64)
+          handler: handleDeposited
+        - event: Canceled(indexed address,indexed address,indexed bytes32,uint256)
+          handler: handleCanceled
+        - event: Withdrawn(indexed address,indexed address,indexed
+            bytes32,address,address,uint256,uint256,uint256,uint256)
+          handler: handleWithdrawn
+      file: ./src/depositTimelock.ts
+  - kind: ethereum
+    name: LoanRouter
+    network: arbitrum-one
+    source:
+      abi: LoanRouter
+      address: "0x0C2ED170ecCc48Eb9819b40808f444f99991C079"
+      startBlock: 406799745
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - LoanRouterEvent
+        - LoanOriginated
+        - LoanRepaid
+        - LoanLiquidated
+        - LoanCollateralLiquidated
+        - ERC20Token
+      abis:
+        - name: LoanRouter
+          file: ../out/LoanRouter.sol/LoanRouter.json
+        - name: IERC20Metadata
+          file: ../out/IERC20Metadata.sol/IERC20Metadata.json
+      eventHandlers:
+        - event: LoanOriginated(indexed bytes32,indexed address,indexed
+            address,uint256,uint256)
+          handler: handleLoanOriginated
+        - event: LoanRepaid(indexed bytes32,indexed
+            address,uint256,uint256,uint256,uint256,bool)
+          handler: handleLoanRepaid
+        - event: LoanLiquidated(indexed bytes32)
+          handler: handleLoanLiquidated
+        - event: LoanCollateralLiquidated(indexed bytes32,uint256,uint256,uint256)
+          handler: handleLoanCollateralLiquidated
+      file: ./src/loanRouter.ts
