@@ -77,7 +77,7 @@ contract LoanRouterQuoteTest is BaseTest {
 
         (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment) = loanRouter.quote(loanTerms);
 
-        assertEq(principalPayment + interestPayment + feesPayment, 3220362816);
+        assertEq(principalPayment + interestPayment + feesPayment, 3220362974);
     }
 
     function test__Quote_LatePayment_TwoIntervalsLate() public {
@@ -92,7 +92,7 @@ contract LoanRouterQuoteTest is BaseTest {
 
         (uint256 principalPayment, uint256 interestPayment, uint256 feesPayment) = loanRouter.quote(loanTerms);
 
-        assertEq(principalPayment + interestPayment + feesPayment, 10072046873);
+        assertEq(principalPayment + interestPayment + feesPayment, 10483132910);
     }
 
     /*------------------------------------------------------------------------*/

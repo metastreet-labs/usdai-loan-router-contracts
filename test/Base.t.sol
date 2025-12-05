@@ -44,8 +44,8 @@ abstract contract BaseTest is Test {
     uint64 internal constant GRACE_PERIOD_DURATION = 30 days;
 
     /* Rate constants (per second) */
-    // 5% per annum = 0.05 / (365 * 86400) = ~1.585e-9 per second
-    uint256 internal constant GRACE_PERIOD_RATE = 1585489599; // 5% APR in per-second rate (scaled by 1e18)
+    // 10% per annum = 0.10 / (365 * 86400) = ~3.171e-9 per second
+    uint256 internal constant GRACE_PERIOD_RATE = 3171469679; // 10% APR in per-second rate (scaled by 1e18)
 
     // Interest rates for tranches (per second, scaled by 1e18)
     // To get 10-12% APR weighted average
