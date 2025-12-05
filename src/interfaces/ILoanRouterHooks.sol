@@ -33,6 +33,7 @@ interface ILoanRouterHooks {
      * @param principal Principal amount
      * @param interest Interest amount
      * @param prepay Prepay amount
+     * @param repaymentDeadline Repayment deadline
      */
     function onLoanRepayment(
         ILoanRouter.LoanTerms calldata loanTerms,
@@ -41,7 +42,8 @@ interface ILoanRouterHooks {
         uint256 loanBalance,
         uint256 principal,
         uint256 interest,
-        uint256 prepay
+        uint256 prepay,
+        uint64 repaymentDeadline
     ) external;
 
     /**

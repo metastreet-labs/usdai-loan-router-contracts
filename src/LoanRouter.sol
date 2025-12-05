@@ -488,6 +488,7 @@ contract LoanRouter is
      * @param trancheInterests Tranche interests
      * @param tranchePrincipals Tranche principals
      * @param totalPrepayment Total prepayment
+     * @param repaymentDeadline Repayment deadline
      * @return Total repayment transferred
      */
     function _repayLenders(
@@ -496,7 +497,8 @@ contract LoanRouter is
         uint256 loanBalance,
         uint256[] memory trancheInterests,
         uint256[] memory tranchePrincipals,
-        uint256 totalPrepayment
+        uint256 totalPrepayment,
+        uint64 repaymentDeadline
     ) internal returns (uint256) {
         /* Unscale loan balance */
         loanBalance = _unscale(loanBalance);
@@ -539,7 +541,7 @@ contract LoanRouter is
             /* Call onLoanRepayment hook if lender is a contract and implements ILoanRouterHooks interface */
             if (_supportsHooksInterface(owner)) {
                 try ILoanRouterHooks(owner).onLoanRepayment{gas: HOOK_GAS_LIMIT}(
-                    loanTerms, loanTermsHash_, i, loanBalance, principal, interest, prepayment
+                    loanTerms, loanTermsHash_, i, loanBalance, principal, interest, prepayment, repaymentDeadline
                 ) {}
                 catch (bytes memory reason) {
                     /* Emit hook failed event */
@@ -873,6 +875,9 @@ contract LoanRouter is
         /* Calculate scaled amount */
         uint256 scaledAmount = _scale(amount);
 
+        /* Cache repayment deadline */
+        uint64 repaymentDeadline = loanState_.repaymentDeadline;
+
         /* Check if this is a repayment or prepayment */
         bool isRepayment = block.timestamp > loanState_.repaymentDeadline - loanTerms.repaymentInterval;
 
@@ -945,7 +950,13 @@ contract LoanRouter is
         /* Transfer lender repayments and call onLoanRepayment hooks */
         if (
             _repayLenders(
-                    loanTerms, loanTermsHash_, loanState_.balance, trancheInterests, tranchePrincipals, prepayment
+                    loanTerms,
+                    loanTermsHash_,
+                    loanState_.balance,
+                    trancheInterests,
+                    tranchePrincipals,
+                    prepayment,
+                    repaymentDeadline
                 ) > repayment
         ) {
             revert InvalidAmount();
