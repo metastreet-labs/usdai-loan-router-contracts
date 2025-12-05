@@ -1,0 +1,22 @@
+{
+  "arbitrum-one": {
+    "DepositTimelock": {
+      "address": "0x0D710CC05f34d2eaD9fbA3c78d53d76a0623c9F8",
+      "startBlock": 406799745
+    },
+    "LoanRouter": {
+      "address": "0x0C2ED170ecCc48Eb9819b40808f444f99991C079",
+      "startBlock": 406799745
+    }
+  },
+  "sepolia": {
+    "DepositTimelock": {
+      "address": "0x43E595A3654F12C8037b9C83F6112f947A11485C",
+      "startBlock": 9476018
+    },
+    "LoanRouter": {
+      "address": "0x399089e1D8a1a30E6A497f5885147A807B998183",
+      "startBlock": 9476021
+    }
+  }
+}

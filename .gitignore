@@ -19,3 +19,6 @@ deployments/local.json
 
 # Ignore claude
 .claude
+
+# Ignore .vscode
+.vscode
