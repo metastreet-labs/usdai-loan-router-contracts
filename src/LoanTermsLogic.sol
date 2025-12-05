@@ -126,6 +126,9 @@ library LoanTermsLogic {
         if (loanTerms.interestRateModel == address(0)) revert ILoanRouter.InvalidLoanTerms("Interest Rate Model");
         if (loanTerms.trancheSpecs.length == 0) revert ILoanRouter.InvalidLoanTerms("Tranche Specs");
         if (loanTerms.trancheSpecs.length > 32) revert ILoanRouter.InvalidLoanTerms("Tranche Specs");
+        if (loanTerms.gracePeriodRate < loanTerms.trancheSpecs[0].rate) {
+            revert ILoanRouter.InvalidLoanTerms("Grace Period Rate less than tranche rate");
+        }
         for (uint256 i; i < loanTerms.trancheSpecs.length; i++) {
             if (loanTerms.trancheSpecs[i].lender == address(0)) revert ILoanRouter.InvalidAddress();
             if (loanTerms.trancheSpecs[i].amount == 0) revert ILoanRouter.InvalidAmount();
