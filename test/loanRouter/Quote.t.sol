@@ -3,6 +3,7 @@ pragma solidity 0.8.29;
 
 import {BaseTest} from "../Base.t.sol";
 import {ILoanRouter} from "src/interfaces/ILoanRouter.sol";
+import {SimpleInterestRateModel} from "src/rates/SimpleInterestRateModel.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 contract LoanRouterQuoteTest is BaseTest {
@@ -12,12 +13,13 @@ contract LoanRouterQuoteTest is BaseTest {
 
     function setupLoan(
         uint256 principal,
-        uint256 numTranches
+        uint256 numTranches,
+        address interestRateModel
     ) internal returns (ILoanRouter.LoanTerms memory loanTerms, bytes32 loanTermsHash) {
         uint256 originationFee = principal / 100; // 1% origination fee
         uint256 exitFee = principal / 200; // 0.5% exit fee
 
-        loanTerms = createLoanTerms(users.borrower, principal, numTranches, originationFee, exitFee);
+        loanTerms = createLoanTerms(users.borrower, principal, numTranches, originationFee, exitFee, interestRateModel);
         loanTermsHash = loanRouter.loanTermsHash(loanTerms);
 
         // Setup deposits for all tranches
@@ -50,7 +52,7 @@ contract LoanRouterQuoteTest is BaseTest {
     function test__Quote_OnTime() public {
         uint256 principal = 100_000 * 1e6; // 100k USDC
 
-        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1);
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1, address(interestRateModel));
 
         // Warp one second into loan
         warp(1);
@@ -67,7 +69,7 @@ contract LoanRouterQuoteTest is BaseTest {
     function test__Quote_LatePayment_OneIntervalLate() public {
         uint256 principal = 100_000 * 1e6; // 100k USDC
 
-        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1);
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1, address(interestRateModel));
 
         (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
 
@@ -83,7 +85,7 @@ contract LoanRouterQuoteTest is BaseTest {
     function test__Quote_LatePayment_TwoIntervalsLate() public {
         uint256 principal = 100_000 * 1e6; // 100k USDC
 
-        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1);
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1, address(interestRateModel));
 
         (,, uint64 repaymentDeadline,) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
 
@@ -194,5 +196,43 @@ contract LoanRouterQuoteTest is BaseTest {
 
         // Verify loan is repaid
         assertEq(principalPayment3 + interestPayment3 + feesPayment3, 0);
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Test: Includes exit fee after multiple missed payments */
+    /*------------------------------------------------------------------------*/
+
+    function test__Quote_IncludesExitFee_AfterMultipleMissedPayments_WithSimpleIRM() public {
+        uint256 principal = 100_000 * 1e6;
+
+        address simpleInterestRateModel = address(new SimpleInterestRateModel());
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1, simpleInterestRateModel);
+
+        vm.warp(block.timestamp + LOAN_DURATION);
+
+        loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+        (,,, uint256 scaledBalance) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        (uint256 principalPayment,, uint256 feesPayment) = loanRouter.quote(loanTerms, uint64(block.timestamp));
+
+        assertEq(scaledBalance, principalPayment * 1e12, "Scaled balance should be correct");
+        assertGt(feesPayment, 0, "Fees payment should be positive");
+    }
+
+    function test__Quote_IncludesExitFee_AfterMultipleMissedPayments_WithAmortizedIRM() public {
+        uint256 principal = 100_000 * 1e6;
+
+        (ILoanRouter.LoanTerms memory loanTerms,) = setupLoan(principal, 1, address(interestRateModel));
+
+        vm.warp(block.timestamp + LOAN_DURATION);
+
+        loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+        (,,, uint256 scaledBalance) = loanRouter.loanState(loanRouter.loanTermsHash(loanTerms));
+
+        (uint256 principalPayment,, uint256 feesPayment) = loanRouter.quote(loanTerms, uint64(block.timestamp));
+
+        assertEq(scaledBalance, principalPayment * 1e12, "Scaled balance should be correct");
+        assertGt(feesPayment, 0, "Fees payment should be positive");
     }
 }
