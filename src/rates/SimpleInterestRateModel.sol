@@ -102,7 +102,9 @@ contract SimpleInterestRateModel is IInterestRateModel {
 
         /* Calculate principal payment */
         uint256 principalPayment = balance / remainingRepaymentIntervals;
-        uint256 totalPrincipalPayment = principalPayment * pendingRepaymentIntervals;
+        uint256 totalPrincipalPayment = remainingRepaymentIntervals == pendingRepaymentIntervals
+            ? balance
+            : principalPayment * pendingRepaymentIntervals;
 
         /* Calculate total interest payment */
         uint256 totalInterestPayment;

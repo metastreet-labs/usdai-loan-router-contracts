@@ -341,12 +341,13 @@ abstract contract BaseTest is Test {
         vm.deal({account: addr, newBalance: 100 ether});
     }
 
-    function createLoanTerms(
+    function _createLoanTerms(
         address borrower_,
         uint256 principal,
         uint256 numTranches,
         uint256 originationFee,
-        uint256 exitFee
+        uint256 exitFee,
+        address interestRateModel_
     ) internal view returns (ILoanRouter.LoanTerms memory) {
         require(numTranches > 0 && numTranches <= 3, "Invalid number of tranches");
 
@@ -390,7 +391,7 @@ abstract contract BaseTest is Test {
             collateralTokenId: wrappedTokenId,
             duration: LOAN_DURATION,
             repaymentInterval: REPAYMENT_INTERVAL,
-            interestRateModel: address(interestRateModel),
+            interestRateModel: interestRateModel_,
             gracePeriodRate: GRACE_PERIOD_RATE,
             gracePeriodDuration: uint256(GRACE_PERIOD_DURATION),
             feeSpec: ILoanRouter.FeeSpec({originationFee: originationFee, exitFee: exitFee}),
@@ -398,6 +399,27 @@ abstract contract BaseTest is Test {
             collateralWrapperContext: encodedBundle,
             options: ""
         });
+    }
+
+    function createLoanTerms(
+        address borrower_,
+        uint256 principal,
+        uint256 numTranches,
+        uint256 originationFee,
+        uint256 exitFee
+    ) internal view returns (ILoanRouter.LoanTerms memory) {
+        return _createLoanTerms(borrower_, principal, numTranches, originationFee, exitFee, address(interestRateModel));
+    }
+
+    function createLoanTerms(
+        address borrower_,
+        uint256 principal,
+        uint256 numTranches,
+        uint256 originationFee,
+        uint256 exitFee,
+        address interestRateModel_
+    ) internal view returns (ILoanRouter.LoanTerms memory) {
+        return _createLoanTerms(borrower_, principal, numTranches, originationFee, exitFee, interestRateModel_);
     }
 
     function signLoanTerms(
