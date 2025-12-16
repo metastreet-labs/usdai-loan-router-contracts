@@ -19,7 +19,7 @@ contract SimpleInterestRateModelTest is BaseTest {
 
     function test__Metadata() public view {
         assertEq(simpleModel.INTEREST_RATE_MODEL_NAME(), "SimpleInterestRateModel", "Model name should match");
-        assertEq(simpleModel.INTEREST_RATE_MODEL_VERSION(), "1.0", "Model version should match");
+        assertEq(simpleModel.INTEREST_RATE_MODEL_VERSION(), "1.1", "Model version should match");
     }
 
     /*------------------------------------------------------------------------*/

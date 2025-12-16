@@ -69,7 +69,7 @@ contract SimpleInterestRateModel is IInterestRateModel {
      * @inheritdoc IInterestRateModel
      */
     function INTEREST_RATE_MODEL_VERSION() external pure override returns (string memory) {
-        return "1.0";
+        return "1.1";
     }
 
     /**
