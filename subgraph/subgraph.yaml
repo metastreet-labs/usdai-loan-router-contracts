@@ -17,6 +17,10 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Deposit
+        - DepositTimelockEvent
+        - Deposited
+        - Canceled
+        - Withdrawn
         - ERC20Token
       abis:
         - name: DepositTimelock

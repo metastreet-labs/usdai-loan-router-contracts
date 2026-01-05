@@ -8,6 +8,54 @@ type Deposit @entity(immutable: false) {
   expiration: BigInt! # uint64
 }
 
+enum DepositTimelockEventType {
+  Deposited
+  Canceled
+  Withdrawn
+}
+
+type DepositTimelockEvent @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  txHash: Bytes! # bytes32
+  timestamp: BigInt! # uint256
+  loanTermsHash: Bytes! # bytes32
+  type: DepositTimelockEventType!
+  deposited: Deposited
+  canceled: Canceled
+  withdrawn: Withdrawn
+}
+
+type Deposited @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  depositor: Bytes! # address
+  target: Bytes! # address
+  context: Bytes! # bytes32
+  token: ERC20Token!
+  amount: BigInt! # uint256
+  expiration: BigInt! # uint64
+}
+
+type Canceled @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  depositor: Bytes! # address
+  target: Bytes! # address
+  context: Bytes! # bytes32
+  amount: BigInt! # uint256
+}
+
+type Withdrawn @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  depositor: Bytes! # address
+  withdrawer: Bytes! # address
+  context: Bytes! # bytes32
+  depositToken: ERC20Token!
+  withdrawToken: ERC20Token!
+  depositAmount: BigInt! # uint256
+  withdrawAmount: BigInt! # uint256
+  refundDepositAmount: BigInt! # uint256
+  refundWithdrawAmount: BigInt! # uint256
+}
+
 type ERC20Token @entity(immutable: true) {
   id: Bytes! # address
   name: String! # string
