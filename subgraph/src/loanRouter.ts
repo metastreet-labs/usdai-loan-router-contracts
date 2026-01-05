@@ -1,11 +1,13 @@
 import { Bytes, ethereum } from "@graphprotocol/graph-ts";
 import {
+  LenderRepaid as LenderRepaidEvent,
   LoanCollateralLiquidated as LoanCollateralLiquidatedEvent,
   LoanLiquidated as LoanLiquidatedEvent,
   LoanOriginated as LoanOriginatedEvent,
   LoanRepaid as LoanRepaidEvent,
 } from "../generated/LoanRouter/LoanRouter";
 import {
+  LenderRepaid as LenderRepaidEntity,
   LoanCollateralLiquidated as LoanCollateralLiquidatedEntity,
   LoanLiquidated as LoanLiquidatedEntity,
   LoanOriginated as LoanOriginatedEntity,
@@ -19,6 +21,7 @@ class LoanRouterEventType {
   static LoanRepaid: string = "LoanRepaid";
   static LoanLiquidated: string = "LoanLiquidated";
   static LoanCollateralLiquidated: string = "LoanCollateralLiquidated";
+  static LenderRepaid: string = "LenderRepaid";
 }
 
 function getId(event: ethereum.Event): Bytes {
@@ -42,6 +45,10 @@ function createLoanRouterEventEntity(event: ethereum.Event, loanTermsHash: Bytes
     loanRouterEventEntity.loanLiquidated = id;
   } else if (type === LoanRouterEventType.LoanCollateralLiquidated) {
     loanRouterEventEntity.loanCollateralLiquidated = id;
+  } else if (type === LoanRouterEventType.LenderRepaid) {
+    loanRouterEventEntity.lenderRepaid = id;
+  } else {
+    throw new Error(`Invalid loan router event type: ${type}`);
   }
 
   loanRouterEventEntity.save();
@@ -109,4 +116,21 @@ export function handleLoanCollateralLiquidated(event: LoanCollateralLiquidatedEv
   loanCollateralLiquidatedEntity.liquidationFee = event.params.liquidationFee;
   loanCollateralLiquidatedEntity.surplus = event.params.surplus;
   loanCollateralLiquidatedEntity.save();
+}
+
+export function handleLenderRepaid(event: LenderRepaidEvent): void {
+  let loanRouterEventEntity = createLoanRouterEventEntity(
+    event,
+    event.params.loanTermsHash,
+    LoanRouterEventType.LenderRepaid,
+  );
+
+  let lenderRepaidEntity = new LenderRepaidEntity(loanRouterEventEntity.id);
+  lenderRepaidEntity.loanTermsHash = event.params.loanTermsHash;
+  lenderRepaidEntity.lender = event.params.lender;
+  lenderRepaidEntity.trancheIndex = event.params.trancheIndex;
+  lenderRepaidEntity.principal = event.params.principal;
+  lenderRepaidEntity.interest = event.params.interest;
+  lenderRepaidEntity.prepay = event.params.prepay;
+  lenderRepaidEntity.save();
 }

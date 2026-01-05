@@ -54,6 +54,7 @@ dataSources:
         - LoanRepaid
         - LoanLiquidated
         - LoanCollateralLiquidated
+        - LenderRepaid
         - ERC20Token
       abis:
         - name: LoanRouter
@@ -71,4 +72,7 @@ dataSources:
           handler: handleLoanLiquidated
         - event: LoanCollateralLiquidated(indexed bytes32,uint256,uint256,uint256)
           handler: handleLoanCollateralLiquidated
+        - event: LenderRepaid(indexed bytes32,indexed address,indexed
+            uint8,uint256,uint256,uint256)
+          handler: handleLenderRepaid
       file: ./src/loanRouter.ts

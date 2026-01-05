@@ -68,6 +68,7 @@ enum LoanRouterEventType {
   LoanRepaid
   LoanLiquidated
   LoanCollateralLiquidated
+  LenderRepaid
 }
 
 type LoanRouterEvent @entity(immutable: true) {
@@ -80,6 +81,7 @@ type LoanRouterEvent @entity(immutable: true) {
   loanRepaid: LoanRepaid
   loanLiquidated: LoanLiquidated
   loanCollateralLiquidated: LoanCollateralLiquidated
+  lenderRepaid: LenderRepaid
 }
 
 type LoanOriginated @entity(immutable: true) {
@@ -113,4 +115,14 @@ type LoanCollateralLiquidated @entity(immutable: true) {
   proceeds: BigInt! # uint256
   liquidationFee: BigInt! # uint256
   surplus: BigInt! # uint256
+}
+
+type LenderRepaid @entity(immutable: true) {
+  id: Bytes! # concat(txHash, logIndex)
+  loanTermsHash: Bytes! # bytes32
+  lender: Bytes! # address
+  trancheIndex: Int! # uint8
+  principal: BigInt! # uint256
+  interest: BigInt! # uint256
+  prepay: BigInt! # uint256
 }
