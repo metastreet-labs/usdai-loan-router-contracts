@@ -62,12 +62,14 @@ interface ILoanRouterV2 {
      * @param Repayment Fee charged on each repayment
      * @param Exit Fee charged when the loan is repaid in full
      * @param Liquidation Fee charged when the loan is liquidated
+     * @param Refinance Fee charged when the loan is refinanced
      */
     enum FeeKind {
         Origination,
         Repayment,
         Exit,
-        Liquidation
+        Liquidation,
+        Refinance
     }
 
     /**
@@ -271,8 +273,18 @@ interface ILoanRouterV2 {
      * @param oldLoanTermsHash Old loan terms hash
      * @param newLoanTermsHash New loan terms hash
      * @param newLoanTerms New loan terms
+     * @param cashOut Net cash-out to the borrower, zero when the refinance is cash-in
+     * @param cashIn Net cash-in from the borrower, zero when the refinance is cash-out
+     * @param refinanceFee Refinance fee paid
      */
-    event LoanRefinanced(bytes32 indexed oldLoanTermsHash, bytes32 indexed newLoanTermsHash, bytes newLoanTerms);
+    event LoanRefinanced(
+        bytes32 indexed oldLoanTermsHash,
+        bytes32 indexed newLoanTermsHash,
+        bytes newLoanTerms,
+        uint256 cashOut,
+        uint256 cashIn,
+        uint256 refinanceFee
+    );
 
     /**
      * @notice Emitted when loan is set to breached
@@ -536,10 +548,24 @@ interface ILoanRouterV2 {
      * @notice Refinance a loan by replacing its terms with new terms
      * @param oldLoanTerms Old loan terms
      * @param newLoanTerms New loan terms
+     * @param expectedBalance Expected pending balance of old loan
+     *
+     * The new total tranche amount is the new outstanding balance. When it is
+     * greater than the current balance, the difference is a cash-out drawn
+     * from the deposit timelock and paid to the borrower. When it is less, the
+     * difference is a cash-in pulled from the borrower and repaid to the
+     * lenders. The borrower, currency token, collateral, repayment schedule,
+     * and the lender holding each tranche position must not change.
+     *
+     * Lenders must fund cash-out amounts into the deposit timelock under the
+     * new loan terms hash before this call. The cash-out covers the cash-in
+     * and refinance fee first, so the borrower only needs to approve and hold
+     * the amount by which the cash-in plus fee exceeds the cash-out.
      */
     function refinance(
         LoanTermsV2 calldata oldLoanTerms,
-        LoanTermsV2 calldata newLoanTerms
+        LoanTermsV2 calldata newLoanTerms,
+        uint256 expectedBalance
     ) external;
 
     /*------------------------------------------------------------------------*/

@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import "@openzeppelin/contracts/utils/TransientSlot.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -349,22 +350,27 @@ contract LoanRouterV2 is
      * @param loanTerms Loan terms
      * @param loanTermsHash_ Loan terms hash
      * @param loan Loan state
+     * @param isRefinance Whether the loan is a refinance
      */
     function _closeLoan(
         LoanTermsV2 calldata loanTerms,
         bytes32 loanTermsHash_,
-        LoanState storage loan
+        LoanState storage loan,
+        bool isRefinance
     ) private {
-        /* Mark loan repaid */
+        /* Mark loan repaid and set balance to zero */
         loan.status = LoanStatus.Repaid;
+        loan.balance = 0;
 
         /* Burn lender NFTs and clear reverse lookups */
         _burnLenderPositions(loanTerms, loanTermsHash_);
 
         /* Return collateral to borrower */
-        for (uint256 i; i < loanTerms.collateralTokenIds.length; i++) {
-            IERC721(loanTerms.collateralToken)
-                .safeTransferFrom(address(this), loanTerms.borrower, loanTerms.collateralTokenIds[i]);
+        if (!isRefinance) {
+            for (uint256 i; i < loanTerms.collateralTokenIds.length; i++) {
+                IERC721(loanTerms.collateralToken)
+                    .safeTransferFrom(address(this), loanTerms.borrower, loanTerms.collateralTokenIds[i]);
+            }
         }
     }
 
@@ -689,7 +695,7 @@ contract LoanRouterV2 is
         }
 
         /* If loan is fully repaid, close it out */
-        if (isFullyRepaid) _closeLoan(loanTerms, loanTermsHash_, loan);
+        if (isFullyRepaid) _closeLoan(loanTerms, loanTermsHash_, loan, false);
 
         /* Emit loan repaid event */
         emit LoanRepaid(
@@ -821,19 +827,26 @@ contract LoanRouterV2 is
 
     /**
      * @inheritdoc ILoanRouterV2
-     * @dev Equivalence between relevant fields of old and new loan terms are to be validated by the caller
-     * @dev If refinancing fee is required, the fee must be transferred to this contract before calling this function
      */
     function refinance(
         LoanTermsV2 calldata oldLoanTerms,
-        LoanTermsV2 calldata newLoanTerms
+        LoanTermsV2 calldata newLoanTerms,
+        uint256 expectedBalance
     ) external onlyRole(ORIGINATOR_ROLE) scaleFactor(oldLoanTerms.currencyToken) nonReentrant {
         /* Get old loan storage */
         bytes32 oldLoanTermsHash = LoanLogicV2.hashLoanTerms(abi.encode(oldLoanTerms));
         LoanState storage oldLoan = _getLoansStorage().loans[oldLoanTermsHash];
 
-        /* Validate loan state */
+        /* Validate old loan state */
         if (oldLoan.status != LoanStatus.Active) revert InvalidLoanState();
+
+        /* Cache old loan balance */
+        uint256 oldBalance = oldLoan.balance;
+
+        /* Validate expected current balance */
+        if (expectedBalance != oldBalance) {
+            revert InvalidAmount();
+        }
 
         /* Compute new loan terms hash and get new loan storage */
         bytes32 newLoanTermsHash = LoanLogicV2.hashLoanTerms(abi.encode(newLoanTerms));
@@ -842,35 +855,43 @@ contract LoanRouterV2 is
         /* Validate new loan state */
         if (newLoan.status != LoanStatus.Uninitialized) revert InvalidLoanState();
 
-        /* Validate old and new loan terms principal */
-        if (LoanLogicV2.computePrincipal(oldLoanTerms) != LoanLogicV2.computePrincipal(newLoanTerms)) {
-            revert InvalidAmount();
-        }
+        /* Validate refinance loan terms */
+        LoanLogicV2.validateRefinanceLoanTerms(oldLoanTerms, newLoanTerms, oldLoan, oldLoanTermsHash);
 
-        /* Validate new loan terms */
-        LoanLogicV2.validateLoanTerms(newLoanTerms);
+        /* Read the scale factor */
+        uint256 scaleFactor_ = SCALING_FACTOR_STORAGE_LOCATION.asUint256().tload();
 
-        /* Update old loan status */
-        oldLoan.status = LoanStatus.Repaid;
+        /* Compute the new unscaled balance */
+        uint256 newBalance = LoanLogicV2.computePrincipal(newLoanTerms);
 
-        /* Burn old lender NFTs and clear reverse lookups */
-        _burnLenderPositions(oldLoanTerms, oldLoanTermsHash);
+        /* Close the old loan without returning collateral */
+        _closeLoan(oldLoanTerms, oldLoanTermsHash, oldLoan, true);
 
         /* Initialize new loan state */
         newLoan.status = LoanStatus.Active;
-        newLoan.balance = oldLoan.balance;
+        newLoan.balance = oldLoan.repaymentCount == 0 ? _scale(newBalance) : oldBalance;
         newLoan.repaymentCount = oldLoan.repaymentCount;
-        newLoan.originationTimestamp = oldLoan.originationTimestamp;
+        newLoan.originationTimestamp =
+            oldLoan.repaymentCount == 0 ? uint64(block.timestamp) : oldLoan.originationTimestamp;
 
         /* Tokenize lender positions without calling onLoanOriginated hook */
         _tokenizeLenderPositions(newLoanTerms, newLoanTermsHash, true);
 
-        /* Call onLoanRefinanced hook only for tranche 0 lender */
-        ILoanRouterV2Hooks(newLoanTerms.trancheSpecs[0].lender)
-            .onLoanRefinanced(oldLoanTerms, newLoanTerms, oldLoanTermsHash, newLoanTermsHash);
+        /* Settle the refinance fee and cash movements and notify lenders */
+        (uint256 cashOut, uint256 cashIn, uint256 refinanceFee) = LoanLogicV2.refinance(
+            oldLoanTerms,
+            newLoanTerms,
+            newLoan,
+            oldLoanTermsHash,
+            newLoanTermsHash,
+            oldBalance,
+            scaleFactor_,
+            _depositTimelock,
+            _feeRecipient
+        );
 
         /* Emit loan refinanced event */
-        emit LoanRefinanced(oldLoanTermsHash, newLoanTermsHash, abi.encode(newLoanTerms));
+        emit LoanRefinanced(oldLoanTermsHash, newLoanTermsHash, abi.encode(newLoanTerms), cashOut, cashIn, refinanceFee);
     }
 
     /*------------------------------------------------------------------------*/

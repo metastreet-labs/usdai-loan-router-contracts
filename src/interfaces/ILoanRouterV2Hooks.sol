@@ -88,11 +88,17 @@ interface ILoanRouterV2Hooks {
      * @param newLoanTerms New loan terms
      * @param oldLoanTermsHash Old loan terms hash
      * @param newLoanTermsHash New loan terms hash
+     * @param trancheIndex Tranche index
+     * @param cashOut Cash out amount
+     * @param cashIn Cash in amount
      */
     function onLoanRefinanced(
         ILoanRouterV2.LoanTermsV2 calldata oldLoanTerms,
         ILoanRouterV2.LoanTermsV2 calldata newLoanTerms,
         bytes32 oldLoanTermsHash,
-        bytes32 newLoanTermsHash
+        bytes32 newLoanTermsHash,
+        uint8 trancheIndex,
+        uint256 cashOut,
+        uint256 cashIn
     ) external;
 }

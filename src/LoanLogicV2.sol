@@ -221,6 +221,71 @@ library LoanLogicV2 {
     }
 
     /**
+     * @notice Validate refinance loan terms
+     * @param oldLoanTerms Old loan terms
+     * @param newLoanTerms New loan terms
+     * @param oldLoan Old loan state
+     * @param oldLoanTermsHash Old loan terms hash
+     */
+    function validateRefinanceLoanTerms(
+        ILoanRouterV2.LoanTermsV2 calldata oldLoanTerms,
+        ILoanRouterV2.LoanTermsV2 calldata newLoanTerms,
+        ILoanRouterV2.LoanState storage oldLoan,
+        bytes32 oldLoanTermsHash
+    ) external view {
+        /* New loan terms cannot be expired */
+        if (newLoanTerms.expiration < block.timestamp) revert ILoanRouterV2.InvalidLoanTerms("Expiration");
+
+        /* Borrower must not change */
+        if (oldLoanTerms.borrower != newLoanTerms.borrower) revert ILoanRouterV2.InvalidLoanTerms("Borrower");
+
+        /* Currency token must not change */
+        if (oldLoanTerms.currencyToken != newLoanTerms.currencyToken) {
+            revert ILoanRouterV2.InvalidLoanTerms("Currency Token");
+        }
+
+        /* Collateral token must not change */
+        if (oldLoanTerms.collateralToken != newLoanTerms.collateralToken) {
+            revert ILoanRouterV2.InvalidLoanTerms("Collateral Token");
+        }
+
+        /* Collateral token IDs must not change */
+        if (
+            keccak256(abi.encode(oldLoanTerms.collateralTokenIds))
+                != keccak256(abi.encode(newLoanTerms.collateralTokenIds))
+        ) {
+            revert ILoanRouterV2.InvalidLoanTerms("Collateral Token IDs");
+        }
+
+        /* Interest rate model must be set */
+        if (newLoanTerms.interestRateSpec.model == address(0)) {
+            revert ILoanRouterV2.InvalidLoanTerms("Interest Rate Model");
+        }
+
+        /* Interest rate model options must be valid */
+        IInterestRateModelV2(newLoanTerms.interestRateSpec.model).validateOptions(newLoanTerms.interestRateSpec.options);
+
+        /* Validate tranches */
+        uint256 principal;
+        for (uint8 i; i < newLoanTerms.trancheSpecs.length; i++) {
+            if (newLoanTerms.trancheSpecs[i].rate == 0 || newLoanTerms.trancheSpecs[i].rate > FIXED_POINT_SCALE) {
+                revert ILoanRouterV2.InvalidLoanTerms("Rate");
+            }
+            if (newLoanTerms.trancheSpecs[i].amount == 0) revert ILoanRouterV2.InvalidLoanTerms("Tranche Amount");
+            principal += newLoanTerms.trancheSpecs[i].amount;
+        }
+
+        /* Validate each new fee spec's options */
+        for (uint256 i; i < newLoanTerms.feeSpecs.length; i++) {
+            IFeeModel(newLoanTerms.feeSpecs[i].model).validateOptions(newLoanTerms.feeSpecs[i].options);
+        }
+
+        /* New principal must cover at least one unit per repayment window */
+        (, uint64[] memory loanDeadlines) = ScheduleLogic.deadlines(newLoanTerms, oldLoan.originationTimestamp);
+        if (principal < loanDeadlines.length) revert ILoanRouterV2.InvalidLoanTerms("Principal");
+    }
+
+    /**
      * @notice Hash loan terms
      * @param loanTerms Loan terms
      * @return Loan terms hash
@@ -783,6 +848,87 @@ library LoanLogicV2 {
             /* Emit lender liquidation repaid event */
             emit LenderLiquidationRepaid(loanTermsHash_, owner, i, principal, interest);
         }
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Refinance */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @notice Settle a refinance fee and cash movements and notify lenders
+     * @param oldLoanTerms Old loan terms
+     * @param newLoanTerms New loan terms
+     * @param newLoan New loan state
+     * @param oldLoanTermsHash Old loan terms hash
+     * @param newLoanTermsHash New loan terms hash
+     * @param oldBalance Scaled outstanding balance of the old loan and the refinance fee basis
+     * @param scaleFactor Scale factor
+     * @param depositTimelock Deposit timelock address
+     * @param feeRecipient Default fee recipient and fallback recipient for rejected transfers
+     * @return cashOut Net unscaled cash-out to the borrower, zero when the refinance is cash-in
+     * @return cashIn Net unscaled cash-in from the borrower, zero when the refinance is cash-out
+     * @return refinanceFee Unscaled refinance fee
+     */
+    function refinance(
+        ILoanRouterV2.LoanTermsV2 calldata oldLoanTerms,
+        ILoanRouterV2.LoanTermsV2 calldata newLoanTerms,
+        ILoanRouterV2.LoanState storage newLoan,
+        bytes32 oldLoanTermsHash,
+        bytes32 newLoanTermsHash,
+        uint256 oldBalance,
+        uint256 scaleFactor,
+        address depositTimelock,
+        address feeRecipient
+    ) external returns (uint256, uint256, uint256) {
+        /* Calculate cash-out amount from the first tranche */
+        uint256 cashOut = newLoanTerms.trancheSpecs[0].amount - oldLoanTerms.trancheSpecs[0].amount;
+
+        /* Withdraw the lender's cash-out from the deposit timelock */
+        if (cashOut > 0) {
+            IDepositTimelock(depositTimelock)
+                .withdraw(newLoanTerms.trancheSpecs[0].lender, newLoanTermsHash, newLoanTerms.currencyToken, cashOut);
+        }
+
+        /* Calculate cash-out amount for the second tranche from direct transfer by caller */
+        if (oldLoanTerms.trancheSpecs.length == 1 && newLoanTerms.trancheSpecs.length == 2) {
+            cashOut += newLoanTerms.trancheSpecs[1].amount;
+        }
+
+        /* Compute the scaled refinance fee on the old balance */
+        uint256 scaledRefinanceFee = _computeFees(ILoanRouterV2.FeeKind.Refinance, newLoanTerms, newLoan, oldBalance);
+
+        /* Compute unscaled refinance fee */
+        uint256 refinanceFee =
+            (scaledRefinanceFee % scaleFactor == 0
+                ? scaledRefinanceFee / scaleFactor
+                : scaledRefinanceFee / scaleFactor + 1);
+
+        /* Transfer cash-out to the borrower */
+        IERC20(newLoanTerms.currencyToken).safeTransfer(newLoanTerms.borrower, cashOut - refinanceFee);
+
+        /* Pay the refinance fee */
+        _payFees(
+            ILoanRouterV2.FeeKind.Refinance,
+            newLoanTerms,
+            newLoan,
+            newLoanTermsHash,
+            scaleFactor,
+            feeRecipient,
+            oldBalance
+        );
+
+        /* Call onLoanRefinanced hook */
+        ILoanRouterV2Hooks(newLoanTerms.trancheSpecs[0].lender).onLoanRefinanced{gas: HOOK_GAS_LIMIT}(
+            oldLoanTerms,
+            newLoanTerms,
+            oldLoanTermsHash,
+            newLoanTermsHash,
+            0,
+            newLoanTerms.trancheSpecs[0].amount - oldLoanTerms.trancheSpecs[0].amount,
+            0
+        );
+
+        return (cashOut, 0, refinanceFee);
     }
 
     /*------------------------------------------------------------------------*/
