@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
 import {ReserveAccount} from "src/ReserveAccount.sol";
-import {IReserveAccount} from "src/interfaces/IReserveAccount.sol";
 
 import {Deployer} from "./utils/Deployer.s.sol";
 
