@@ -643,7 +643,7 @@ contract LoanRouterV2OriginateTest is RouterFixture {
         prepareCollateralDeposit(loanTerms);
         bytes32 hash_ = router.loanTermsHash(loanTerms);
         vm.expectEmit(true, true, true, true, address(router));
-        emit ILoanRouterV2.LoanOriginated(hash_, users.borrower, USDAI, LOAN_AMOUNT_USDAI, 0);
+        emit ILoanRouterV2.LoanOriginated(hash_, abi.encode(loanTerms));
         vm.prank(users.deployer);
         router.originate(loanTerms, buildDepositInfos(loanTerms, true), new bytes[](0));
     }

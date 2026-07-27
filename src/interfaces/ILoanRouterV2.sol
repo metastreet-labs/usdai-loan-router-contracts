@@ -206,18 +206,9 @@ interface ILoanRouterV2 {
     /**
      * @notice Emitted when loan is originated
      * @param loanTermsHash Loan terms hash
-     * @param borrower Borrower address
-     * @param currencyToken Currency token address
-     * @param principal Principal
-     * @param originationFee Origination fee
+     * @param loanTerms Encoded loan terms
      */
-    event LoanOriginated(
-        bytes32 indexed loanTermsHash,
-        address indexed borrower,
-        address indexed currencyToken,
-        uint256 principal,
-        uint256 originationFee
-    );
+    event LoanOriginated(bytes32 indexed loanTermsHash, bytes loanTerms);
 
     /**
      * @notice Emitted when lender position is minted

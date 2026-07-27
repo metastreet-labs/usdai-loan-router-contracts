@@ -531,7 +531,8 @@ contract LoanRouterV2 is
         bytes[] calldata approvalSignatures
     ) external onlyRole(ORIGINATOR_ROLE) scaleFactor(loanTerms.currencyToken) nonReentrant returns (uint256) {
         /* Get loan storage */
-        bytes32 loanTermsHash_ = LoanLogicV2.hashLoanTerms(abi.encode(loanTerms));
+        bytes memory encodedLoanTerms = abi.encode(loanTerms);
+        bytes32 loanTermsHash_ = LoanLogicV2.hashLoanTerms(encodedLoanTerms);
         LoanState storage loan = _getLoansStorage().loans[loanTermsHash_];
 
         /* Validate loan state and lender deposit infos length */
@@ -603,7 +604,7 @@ contract LoanRouterV2 is
         }
 
         /* Emit loan originated event */
-        emit LoanOriginated(loanTermsHash_, loanTerms.borrower, loanTerms.currencyToken, principal, originationFee);
+        emit LoanOriginated(loanTermsHash_, encodedLoanTerms);
 
         return principal - originationFee;
     }
