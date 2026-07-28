@@ -1,3 +1,7 @@
+* LoanRouter v1.2 - 07/28/2026
+    * Add cash-out support to `refinance()` API.
+    * Add encoded loan terms to `LoanOriginated` event.
+
 * ReserveAccountFactory v1.0 - 07/09/2026
     * Initial release.
 
