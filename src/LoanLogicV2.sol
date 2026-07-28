@@ -614,7 +614,30 @@ library LoanLogicV2 {
         uint256 scaleFactor,
         address defaultFeeRecipient,
         uint256 scaledAmount
-    ) external returns (uint256 scaledFeeTotal) {
+    ) external returns (uint256) {
+        return _payFees(kind, loanTerms, loan, loanTermsHash_, scaleFactor, defaultFeeRecipient, scaledAmount);
+    }
+
+    /**
+     * @notice Pay each applicable fee
+     * @param kind Fee event tag
+     * @param loanTerms Loan terms
+     * @param loan Loan state
+     * @param loanTermsHash_ Loan terms hash
+     * @param scaleFactor Scale factor
+     * @param defaultFeeRecipient Default fee recipient
+     * @param scaledAmount Scaled amount
+     * @return scaledFeeTotal Scaled total fee transferred
+     */
+    function _payFees(
+        ILoanRouterV2.FeeKind kind,
+        ILoanRouterV2.LoanTermsV2 calldata loanTerms,
+        ILoanRouterV2.LoanState storage loan,
+        bytes32 loanTermsHash_,
+        uint256 scaleFactor,
+        address defaultFeeRecipient,
+        uint256 scaledAmount
+    ) internal returns (uint256 scaledFeeTotal) {
         /* Pay each applicable fee */
         for (uint256 i; i < loanTerms.feeSpecs.length; i++) {
             /* Skip specs whose kind doesn't match the current event */
@@ -633,13 +656,7 @@ library LoanLogicV2 {
                 loanTerms.feeSpecs[i].recipient != address(0) ? loanTerms.feeSpecs[i].recipient : defaultFeeRecipient;
 
             /* Transfer fee to recipient otherwise redirect to default fee recipient */
-            try IERC20(loanTerms.currencyToken).transfer(recipient, fee) returns (bool success) {
-                if (!success) {
-                    _redirectRepayment(IERC20(loanTerms.currencyToken), recipient, fee, defaultFeeRecipient);
-                }
-            } catch {
-                _redirectRepayment(IERC20(loanTerms.currencyToken), recipient, fee, defaultFeeRecipient);
-            }
+            _transferOrRedirect(IERC20(loanTerms.currencyToken), recipient, fee, defaultFeeRecipient);
 
             /* Call onLoanFeePaid hook if recipient is a contract and implements ILoanRouterV2Hooks interface */
             if (_supportsHooksInterface(recipient)) {
@@ -702,13 +719,7 @@ library LoanLogicV2 {
 
             /* Transfer unscaled repayment amount from this contract to token owner, falling back to fee recipient */
             if (trancheRepayment > 0) {
-                try IERC20(loanTerms.currencyToken).transfer(owner, trancheRepayment) returns (bool success) {
-                    if (!success) {
-                        _redirectRepayment(IERC20(loanTerms.currencyToken), owner, trancheRepayment, feeRecipient);
-                    }
-                } catch {
-                    _redirectRepayment(IERC20(loanTerms.currencyToken), owner, trancheRepayment, feeRecipient);
-                }
+                _transferOrRedirect(IERC20(loanTerms.currencyToken), owner, trancheRepayment, feeRecipient);
             }
 
             /* Call onLoanRepayment hook if lender is a contract and implements ILoanRouterV2Hooks interface */
@@ -755,13 +766,7 @@ library LoanLogicV2 {
 
             /* Transfer unscaled repayment amount from this contract to token owner, falling back to fee recipient */
             if (trancheRepayment > 0) {
-                try IERC20(loanTerms.currencyToken).transfer(owner, trancheRepayment) returns (bool success) {
-                    if (!success) {
-                        _redirectRepayment(IERC20(loanTerms.currencyToken), owner, trancheRepayment, feeRecipient);
-                    }
-                } catch {
-                    _redirectRepayment(IERC20(loanTerms.currencyToken), owner, trancheRepayment, feeRecipient);
-                }
+                _transferOrRedirect(IERC20(loanTerms.currencyToken), owner, trancheRepayment, feeRecipient);
             }
 
             /* Call onLoanCollateralLiquidated hook if lender supports it */
@@ -847,6 +852,27 @@ library LoanLogicV2 {
         if (intendedRecipient != feeRecipient) token.safeTransfer(feeRecipient, amount);
 
         emit TransferFailed(address(token), feeRecipient, intendedRecipient, amount);
+    }
+
+    /**
+     * @notice Transfer to a recipient, redirecting to the fee recipient on failure
+     * @param token Token address
+     * @param recipient Recipient address
+     * @param amount Unscaled amount
+     * @param feeRecipient Fee recipient address
+     */
+    function _transferOrRedirect(
+        IERC20 token,
+        address recipient,
+        uint256 amount,
+        address feeRecipient
+    ) internal {
+        /* Transfer to recipient, falling back to the fee recipient on rejection */
+        try token.transfer(recipient, amount) returns (bool success) {
+            if (!success) _redirectRepayment(token, recipient, amount, feeRecipient);
+        } catch {
+            _redirectRepayment(token, recipient, amount, feeRecipient);
+        }
     }
 
     /**
